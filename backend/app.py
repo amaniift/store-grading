@@ -157,6 +157,7 @@ def get_store_grades():
     subclass = request.args.get("subclass", type=int, default=None)
     store   = request.args.get("store",    type=int, default=None)
     country = request.args.get("country",  type=str, default=None)
+    level   = request.args.get("level",  type=str, default="class")
     page    = request.args.get("page",     type=int, default=1)
     page_size = request.args.get("page_size", type=int, default=100)
 
@@ -200,6 +201,14 @@ def get_store_grades():
         """
         params: list = [dept, class_]
 
+        # Level filter logic: 
+        # class level = SUBCLASS is NULL
+        # subclass level = SUBCLASS is NOT NULL
+        if level == "class":
+            sql += " AND sg.SUBCLASS IS NULL"
+        else:
+            sql += " AND sg.SUBCLASS IS NOT NULL"
+
         if subclass is not None:
             sql += " AND sg.SUBCLASS = ?"
             params.append(subclass)
@@ -216,6 +225,11 @@ def get_store_grades():
         count_sql = f"SELECT COUNT(*) FROM ({sql})"
         total = conn.execute(count_sql, params).fetchone()[0]
 
+        # Calculate grade counts for stats
+        stats_sql = f"SELECT GRADE, COUNT(*) FROM ({sql}) GROUP BY GRADE"
+        stats_rows = conn.execute(stats_sql, params).fetchall()
+        grade_counts = {str(r[0]): r[1] for r in stats_rows}
+
         # Paginate
         offset = (page - 1) * page_size
         sql += f" ORDER BY sg.GRADE, sg.LOCATION LIMIT {page_size} OFFSET {offset}"
@@ -224,6 +238,7 @@ def get_store_grades():
 
         return jsonify({
             "total": total,
+            "grade_counts": grade_counts,
             "page":  page,
             "page_size": page_size,
             "data":  rows,

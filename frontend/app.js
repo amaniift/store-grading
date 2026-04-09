@@ -36,6 +36,7 @@ const state = {
   tableData:  [],
   sortCol:    null,
   sortDir:    'asc',
+  gradeCounts: {},
   selectedClusters: 3,
   isGenerating: false,
 };
@@ -159,7 +160,7 @@ function populateSubclasses(dept, cls) {
     const label = s.SUB_NAME ? `${s.SUBCLASS} — ${s.SUB_NAME}` : `${s.SUBCLASS}`;
     sel.appendChild(new Option(label, s.SUBCLASS));
   });
-  sel.disabled = filtered.length === 0;
+  sel.disabled = (filtered.length === 0) || (state.gradingLevel === 'class');
 }
 
 function populateCountries() {
@@ -229,6 +230,22 @@ function updateSearchButtonState() {
     els.levelSubclass.classList.toggle('active', state.gradingLevel === 'subclass');
     els.levelClass.setAttribute('aria-pressed',    String(state.gradingLevel === 'class'));
     els.levelSubclass.setAttribute('aria-pressed', String(state.gradingLevel === 'subclass'));
+
+    // Link toggle to Subclass filter availability
+    if (state.gradingLevel === 'class') {
+      els.subclassSelect.value = '';
+      state.filters.subclass = null;
+      els.subclassSelect.disabled = true;
+    } else {
+      // Only enable if Class is selected
+      els.subclassSelect.disabled = !state.filters.class;
+    }
+
+    // Auto-refresh search result when toggle changes
+    if (state.filters.dept && state.filters.class) {
+      state.page = 1;
+      fetchGrades();
+    }
   });
 });
 
@@ -247,6 +264,7 @@ async function fetchGrades() {
   const params = new URLSearchParams({
     dept:      state.filters.dept,
     class:     state.filters.class,
+    level:     state.gradingLevel,
     page:      state.page,
     page_size: state.pageSize,
   });
@@ -258,6 +276,7 @@ async function fetchGrades() {
   try {
     const data = await apiFetch(`/api/store-grades?${params}`);
     state.totalRows = data.total;
+    state.gradeCounts = data.grade_counts || {};
     state.tableData = data.data;
     renderTable();
     renderPagination();
@@ -366,11 +385,10 @@ document.querySelectorAll('.data-table th.sortable').forEach(th => {
 // ─── Stats ───────────────────────────────────────────────────────
 
 function renderStats() {
-  const data = state.tableData;
-  const g = grade => data.filter(r => String(r.GRADE) === grade).length;
-  els.statGrade1.textContent = g('1');
-  els.statGrade2.textContent = g('2');
-  els.statGrade3.textContent = g('3');
+  const counts = state.gradeCounts || {};
+  els.statGrade1.textContent = counts['1'] || 0;
+  els.statGrade2.textContent = counts['2'] || 0;
+  els.statGrade3.textContent = counts['3'] || 0;
   els.statTotal.textContent  = state.totalRows;
 }
 
@@ -407,6 +425,7 @@ els.btnReset.addEventListener('click', () => {
   Object.assign(state.filters, { dept: null, class: null, subclass: null, country: null, store: null });
   state.tableData = [];
   state.totalRows = 0;
+  state.gradeCounts = {};
   state.page      = 1;
   state.sortCol   = null;
   els.btnSearch.disabled   = true;
@@ -439,10 +458,17 @@ function openGenerateModal() {
   const store   = state.filters.store
     ? (els.storeSelect.options[els.storeSelect.selectedIndex]?.text || state.filters.store)
     : 'All Stores';
-  const levelLabel = state.gradingLevel === 'class' ? 'Class Level (Subclass = NULL)' : 'Subclass Level';
+
+  const levelLabel = state.gradingLevel === 'class' ? 'Class Level' : 'Subclass Level';
+  const levelDesc  = state.gradingLevel === 'class'
+    ? 'This will generate <strong>one grade per store</strong> by aggregating all sales for the entire Class.'
+    : sub
+      ? `This will generate a grade for <strong>Subclass: ${esc(sub)}</strong> only.`
+      : 'This will generate <strong>multiple grades per store</strong> (one for each Subclass found in sales data).';
 
   els.modalScope.innerHTML = `
-    <div class="scope-row"><span class="scope-key">Level</span>  <span class="scope-value">${esc(levelLabel)}</span></div>
+    <div class="scope-row"><span class="scope-key">Granularity</span> <span class="scope-value" style="color:var(--primary-light)">${esc(levelLabel)}</span></div>
+    <div class="scope-row" style="margin-bottom:12px; font-size:0.8rem; opacity:0.8">${levelDesc}</div>
     <div class="scope-row"><span class="scope-key">Dept</span>   <span class="scope-value">${esc(dept)}</span></div>
     <div class="scope-row"><span class="scope-key">Class</span>  <span class="scope-value">${esc(cls)}</span></div>
     ${sub ? `<div class="scope-row"><span class="scope-key">Subclass</span><span class="scope-value">${esc(sub)}</span></div>` : ''}
