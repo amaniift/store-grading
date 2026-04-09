@@ -175,6 +175,7 @@ function populateSharedFilters() {
   shCountrySel.innerHTML = '<option value="">All Countries</option>';
   allFilters.countries.forEach(c => shCountrySel.appendChild(new Option(c.AREA_NAME, c.AREA_NAME)));
 
+  const shStoreSel = $('sh-store-select');
   allFilters.stores.forEach(s => shStoreSel.appendChild(new Option(s.STORE_NAME || s.STORE, s.STORE)));
   
   // ── Admin selects ──────────────────────────────────────────────
@@ -837,7 +838,6 @@ $('sh-btn-export').addEventListener('click', () => {
   showToast('success', 'Exported', `${shState.data.length} rows downloaded`);
 });
 
-// ═══════════════════════════════════════════════════════════════════
 // ══════════════ PAGE: ADMIN ══════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════
 
@@ -846,48 +846,65 @@ const adminState = {
   selected: new Set() // stores JSON strings of scope objects
 };
 
-$('admin-brand-select').addEventListener('change', () => fetchGradedScopes());
+if ($('admin-brand-select')) {
+  $('admin-brand-select').addEventListener('change', () => fetchGradedScopes());
+}
 
-$('admin-dept-select').addEventListener('change', (e) => {
-  const dept = e.target.value;
-  const classSel = $('admin-class-select');
-  classSel.innerHTML = '<option value="">All Classes</option>';
-  classSel.disabled = !dept;
-  
-  if (dept) {
-    const classes = allFilters.classes.filter(c => c.DEPT == dept);
-    classes.forEach(c => classSel.appendChild(new Option(c.CLASS_NAME ? `${c.CLASS} — ${c.CLASS_NAME}` : `${c.CLASS}`, c.CLASS)));
-  }
-  classSel.dispatchEvent(new Event('change'));
-  fetchGradedScopes();
-});
+if ($('admin-dept-select')) {
+  $('admin-dept-select').addEventListener('change', (e) => {
+    const dept = e.target.value;
+    const classSel = $('admin-class-select');
+    classSel.innerHTML = '<option value="">All Classes</option>';
+    classSel.disabled = !dept;
+    
+    if (dept) {
+      const classes = allFilters.classes.filter(c => c.DEPT == dept);
+      classes.forEach(c => classSel.appendChild(new Option(c.CLASS_NAME ? `${c.CLASS} — ${c.CLASS_NAME}` : `${c.CLASS}`, c.CLASS)));
+    }
+    classSel.dispatchEvent(new Event('change'));
+    fetchGradedScopes();
+  });
+}
 
-$('admin-class-select').addEventListener('change', (e) => {
-  const dept = $('admin-dept-select').value;
-  const cls = e.target.value;
-  const subclassSel = $('admin-subclass-select');
-  subclassSel.innerHTML = '<option value="">All Subclasses</option>';
-  subclassSel.disabled = !cls;
-  
-  if (dept && cls) {
-    const subs = allFilters.subclasses.filter(s => s.DEPT == dept && s.CLASS == cls);
-    subs.forEach(s => subclassSel.appendChild(new Option(s.SUB_NAME ? `${s.SUBCLASS} — ${s.SUB_NAME}` : `${s.SUBCLASS}`, s.SUBCLASS)));
-  }
-  fetchGradedScopes();
-});
+if ($('admin-class-select')) {
+  $('admin-class-select').addEventListener('change', (e) => {
+    const dept = $('admin-dept-select').value;
+    const cls = e.target.value;
+    const subclassSel = $('admin-subclass-select');
+    subclassSel.innerHTML = '<option value="">All Subclasses</option>';
+    subclassSel.disabled = !cls;
+    
+    if (dept && cls) {
+      const subs = allFilters.subclasses.filter(s => s.DEPT == dept && s.CLASS == cls);
+      subs.forEach(s => subclassSel.appendChild(new Option(s.SUB_NAME ? `${s.SUBCLASS} — ${s.SUB_NAME}` : `${s.SUBCLASS}`, s.SUBCLASS)));
+    }
+    fetchGradedScopes();
+  });
+}
 
-$('admin-subclass-select').addEventListener('change', () => fetchGradedScopes());
+if ($('admin-subclass-select')) {
+  $('admin-subclass-select').addEventListener('change', () => fetchGradedScopes());
+}
 
-$('admin-btn-view').addEventListener('click', () => fetchGradedScopes());
-$('admin-btn-reset').addEventListener('click', () => {
-  $('admin-brand-select').value = '';
-  $('admin-dept-select').value = '';
-  $('admin-class-select').value = '';
-  $('admin-class-select').disabled = true;
-  $('admin-subclass-select').value = '';
-  $('admin-subclass-select').disabled = true;
-  fetchGradedScopes();
-});
+if ($('admin-btn-view')) {
+  $('admin-btn-view').addEventListener('click', (e) => {
+    e.preventDefault();
+    fetchGradedScopes();
+  });
+}
+
+if ($('admin-btn-reset')) {
+  $('admin-btn-reset').addEventListener('click', (e) => {
+    e.preventDefault();
+    $('admin-brand-select').value = '';
+    $('admin-dept-select').value = '';
+    $('admin-class-select').value = '';
+    $('admin-class-select').disabled = true;
+    $('admin-subclass-select').value = '';
+    $('admin-subclass-select').disabled = true;
+    fetchGradedScopes();
+  });
+}
 
 async function fetchGradedScopes() {
   const params = new URLSearchParams({
@@ -978,7 +995,8 @@ $('admin-select-all').addEventListener('change', (e) => {
   updateAdminBulkUI();
 });
 
-$('admin-btn-bulk-delete').addEventListener('click', async () => {
+$('admin-btn-bulk-delete').addEventListener('click', async (e) => {
+  e.preventDefault();
   const count = adminState.selected.size;
   if (!count) return;
 
