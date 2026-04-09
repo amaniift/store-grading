@@ -60,6 +60,15 @@
           </span>
           <span class="nav-label">Product Master</span>
         </button>
+        <button class="nav-item" id="nav-location-master" data-page="page-location-master">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+          </span>
+          <span class="nav-label">Location Master</span>
+        </button>
         <button class="nav-item" id="nav-sales-history" data-page="page-sales-history">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
@@ -453,6 +462,95 @@
             <button class="page-btn" id="sh-btn-prev" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="15,18 9,12 15,6"/></svg> Prev</button>
             <div class="page-info" id="sh-page-info">Page 1 of 1</div>
             <button class="page-btn" id="sh-btn-next" disabled>Next <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="9,18 15,12 9,6"/></svg></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════
+           PAGE: LOCATION MASTER
+      ══════════════════════════════════════════════ -->
+      <section class="page hidden" id="page-location-master" aria-label="Location Master">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Location Master</h1>
+            <p class="page-desc">Comprehensive directory of all retail store locations and attributes.</p>
+          </div>
+        </div>
+
+        <!-- Filter Panel -->
+        <div class="filter-panel">
+          <div class="filter-panel-header">
+            <div class="filter-panel-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46 22,3"/></svg>
+              <span>Filter Locations</span>
+            </div>
+          </div>
+
+          <div class="filter-grid">
+            <div class="filter-group">
+              <label for="loc-country-select" class="filter-label">Country / Area</label>
+              <div class="select-wrapper">
+                <select id="loc-country-select" class="filter-select"><option value="">All Countries</option></select>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="loc-type-select" class="filter-label">Store Type</label>
+              <div class="select-wrapper">
+                <select id="loc-type-select" class="filter-select"><option value="">All Types</option></select>
+              </div>
+            </div>
+            <div class="filter-group" style="grid-column: span 2">
+              <label for="loc-search-input" class="filter-label">Search Store <span class="optional-badge">Optional</span></label>
+              <div class="select-wrapper">
+                <input type="text" id="loc-search-input" class="filter-select" placeholder="Search by Store ID or Name..." style="background-image:none; padding-right:12px;" />
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-actions">
+            <button class="btn btn-secondary" id="loc-btn-reset">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+              Reset
+            </button>
+            <button class="btn btn-primary" id="loc-btn-search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Search
+            </button>
+          </div>
+        </div>
+
+        <!-- Data Grid -->
+        <div class="data-grid">
+          <div class="grid-header">
+            <div class="grid-info" id="loc-count-label">Use filters to browse store locations</div>
+          </div>
+          <div class="table-container shadow-sm">
+            <div class="empty-state" id="loc-empty-state">
+              <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="48" height="48"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+              <h3 class="empty-title">No Locations Selected</h3>
+              <p class="empty-desc">Apply filters or search to browse the store location master.</p>
+            </div>
+            <table id="loc-data-table" class="data-table hidden">
+              <thead id="loc-table-head">
+                <tr>
+                  <th>ID</th>
+                  <th>Store Name</th>
+                  <th>Country</th>
+                  <th>City</th>
+                  <th>Currency</th>
+                  <th>Channel Type</th>
+                  <th>Sq Ft</th>
+                  <th>Mall</th>
+                  <th>Default WH</th>
+                </tr>
+              </thead>
+              <tbody id="loc-table-body"></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <button class="page-btn" id="loc-btn-prev" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="15,18 9,12 15,6"/></svg> Prev</button>
+            <div class="page-info" id="loc-page-info">Page 1 of 1</div>
+            <button class="page-btn" id="loc-btn-next" disabled>Next <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="9,18 15,12 9,6"/></svg></button>
           </div>
         </div>
       </section>

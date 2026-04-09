@@ -94,6 +94,11 @@ def get_filters():
             "WHERE AREA_NAME IS NOT NULL AND AREA_NAME != '' ORDER BY AREA_NAME"
         ).fetchall())
 
+        types = [r["STORE_TYPE"] for r in rows_to_list(conn.execute(
+            "SELECT DISTINCT STORE_TYPE FROM location_st_master "
+            "WHERE STORE_TYPE IS NOT NULL ORDER BY STORE_TYPE"
+        ).fetchall())]
+
         conn.close()
         return jsonify({
             "depts":      depts,
@@ -101,6 +106,7 @@ def get_filters():
             "subclasses": subclasses,
             "stores":     stores,
             "countries":  countries,
+            "types":      types,
         })
     except Exception as e:
         traceback.print_exc()
@@ -356,6 +362,66 @@ def get_product_master():
         conn.close()
         return jsonify({"total": total, "page": page, "page_size": page_size,
                         "brands": brands, "data": rows})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/location-master")
+def get_location_master():
+    """
+    Paginated location master from location_st_master.
+    Optional filters: country (AREA_NAME), city, type (STORE_TYPE), search (STORE/STORE_NAME).
+    """
+    country   = request.args.get("country",   type=str, default=None)
+    city      = request.args.get("city",      type=str, default=None)
+    type_     = request.args.get("type",      type=str, default=None)
+    search    = request.args.get("search",    type=str, default=None)
+    page      = request.args.get("page",      type=int, default=1)
+    page_size = request.args.get("page_size", type=int, default=50)
+
+    try:
+        conn = get_db()
+        sql = """
+            SELECT 
+                STORE, STORE_NAME, AREA_NAME AS COUNTRY, 
+                CITY, CURRENCY_CODE, CHANNEL_TYPE, TOTAL_SQUARE_FT, 
+                MALL_NAME, BRAND_NAME, DEFAULT_WH, CHANNEL_NAME
+            FROM location_st_master
+            WHERE 1=1
+        """
+        params = []
+        if country:
+            sql += " AND AREA_NAME = ?"
+            params.append(country)
+        if city:
+            sql += " AND CITY = ?"
+            params.append(city)
+        if type_:
+            sql += " AND STORE_TYPE = ?"
+            params.append(type_)
+        if search:
+            sql += " AND (CAST(STORE AS TEXT) LIKE ? OR STORE_NAME LIKE ?)"
+            params += [f"%{search}%", f"%{search}%"]
+
+        total = conn.execute(f"SELECT COUNT(*) FROM ({sql})", params).fetchone()[0]
+        offset = (page - 1) * page_size
+        sql += f" ORDER BY AREA_NAME, CITY, STORE LIMIT {page_size} OFFSET {offset}"
+        rows = rows_to_list(conn.execute(sql, params).fetchall())
+
+        # Metadata for filters
+        countries = [r["AREA_NAME"] for r in rows_to_list(
+            conn.execute("SELECT DISTINCT AREA_NAME FROM location_st_master WHERE AREA_NAME IS NOT NULL ORDER BY AREA_NAME").fetchall()
+        )]
+        types = [r["STORE_TYPE"] for r in rows_to_list(
+            conn.execute("SELECT DISTINCT STORE_TYPE FROM location_st_master WHERE STORE_TYPE IS NOT NULL ORDER BY STORE_TYPE").fetchall()
+        )]
+
+        conn.close()
+        return jsonify({
+            "total": total, "page": page, "page_size": page_size,
+            "countries": countries, "types": types, "data": rows
+        })
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500

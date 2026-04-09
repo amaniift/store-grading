@@ -129,6 +129,19 @@ async function loadFilters() {
 }
 
 function populateSharedFilters() {
+  // ── Location Master selects ────────────────────────────────────
+  const locCountrySel = $('loc-country-select');
+  locCountrySel.innerHTML = '<option value="">All Countries</option>';
+  allFilters.countries.forEach(c => {
+    locCountrySel.appendChild(new Option(c.AREA_NAME, c.AREA_NAME));
+  });
+
+  const locTypeSel = $('loc-type-select');
+  locTypeSel.innerHTML = '<option value="">All Types</option>';
+  (allFilters.types || []).forEach(t => {
+    locTypeSel.appendChild(new Option(t, t));
+  });
+
   // ── Store Grading selects ──────────────────────────────────────
   const deptSel = $('dept-select');
   deptSel.innerHTML = '<option value="">Select Department...</option>';
@@ -572,6 +585,76 @@ $('pm-btn-export').addEventListener('click', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
+// ══════════════ PAGE 4: LOCATION MASTER ══════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+
+const locState = { page: 1, pageSize: 50, total: 0, data: [] };
+
+$('loc-btn-reset').addEventListener('click', () => {
+  $('loc-country-select').value = '';
+  $('loc-type-select').value    = '';
+  $('loc-search-input').value   = '';
+  locState.page = 1; locState.total = 0; locState.data = [];
+  $('loc-empty-state').classList.remove('hidden'); $('loc-data-table').classList.add('hidden');
+  $('loc-count-label').textContent = 'Use filters to browse store locations';
+  renderLocPagination();
+});
+
+$('loc-btn-search').addEventListener('click', () => { locState.page = 1; fetchLocs(); });
+
+async function fetchLocs() {
+  const params = new URLSearchParams({ page: locState.page, page_size: locState.pageSize });
+  const country = $('loc-country-select').value;
+  const type    = $('loc-type-select').value;
+  const search  = $('loc-search-input').value.trim();
+
+  if (country) params.set('country', country);
+  if (type)    params.set('type',    type);
+  if (search)  params.set('search',  search);
+
+  $('loc-count-label').textContent = 'Loading...';
+  try {
+    const data = await apiFetch(`/api/location-master?${params}`);
+    locState.total = data.total; locState.data = data.data;
+    renderLocTable(); renderLocPagination();
+  } catch (e) { showToast('error', 'Location Error', e.message); }
+}
+
+function renderLocTable() {
+  if (locState.data.length === 0) {
+    $('loc-empty-state').classList.remove('hidden'); $('loc-data-table').classList.add('hidden');
+    $('loc-count-label').textContent = 'No locations found'; return;
+  }
+  $('loc-empty-state').classList.add('hidden'); $('loc-data-table').classList.remove('hidden');
+  const start = (locState.page-1)*locState.pageSize+1, end = Math.min(start+locState.data.length-1, locState.total);
+  $('loc-count-label').textContent = `Showing ${start}–${end} of ${locState.total} rows`;
+
+  $('loc-table-body').innerHTML = locState.data.map(r => `
+    <tr>
+      <td class="mono">${r.STORE}</td>
+      <td>${esc(r.STORE_NAME)}</td>
+      <td>${esc(r.COUNTRY)}</td>
+      <td>${esc(r.CITY)}</td>
+      <td class="mono">${esc(r.CURRENCY_CODE)}</td>
+      <td><span class="unit-badge">${esc(r.CHANNEL_TYPE)}</span></td>
+      <td class="mono">${fmt(r.TOTAL_SQUARE_FT)}</td>
+      <td class="text-sm">${esc(r.MALL_NAME)}</td>
+      <td class="mono text-sm">${esc(r.DEFAULT_WH)}</td>
+    </tr>
+  `).join('');
+}
+
+function renderLocPagination() {
+  const tp = Math.max(1, Math.ceil(locState.total / locState.pageSize));
+  $('loc-page-info').textContent = `Page ${locState.page} of ${tp}`;
+  $('loc-btn-prev').disabled = locState.page <= 1;
+  $('loc-btn-next').disabled = locState.page >= tp;
+}
+
+$('loc-btn-prev').addEventListener('click', () => { if(locState.page>1){locState.page--;fetchLocs();} });
+$('loc-btn-next').addEventListener('click', () => { const tp=Math.ceil(locState.total/locState.pageSize);if(locState.page<tp){locState.page++;fetchLocs();} });
+
+
 // ══════════════ PAGE 3: SALES HISTORY ═══════════════════════════
 // ═══════════════════════════════════════════════════════════════════
 
