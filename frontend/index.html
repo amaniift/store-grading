@@ -1,14 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Retail Analytics Suite</title>
-  <meta name="description" content="Enterprise retail analytics — store grading, product master, and sales history explorer." />
+  <meta name="description"
+    content="Enterprise retail analytics — store grading, product master, and sales history explorer." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
+
 <body>
 
   <!-- ══════════════════════════════════════════════════
@@ -22,8 +26,8 @@
         <div class="sidebar-logo">
           <div class="brand-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-              <polyline points="9,22 9,12 15,12 15,22"/>
+              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+              <polyline points="9,22 9,12 15,12 15,22" />
             </svg>
           </div>
           <div class="sidebar-brand-text">
@@ -33,9 +37,9 @@
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar" title="Toggle sidebar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-            <line x1="3" y1="6"  x2="21" y2="6"/>
-            <line x1="3" y1="12" x2="21" y2="12"/>
-            <line x1="3" y1="18" x2="21" y2="18"/>
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
           </svg>
         </button>
       </div>
@@ -45,7 +49,8 @@
         <button class="nav-item active" id="nav-store-grading" data-page="page-store-grading" aria-current="page">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-              <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+              <polygon
+                points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
             </svg>
           </span>
           <span class="nav-label">Store Grading</span>
@@ -53,9 +58,9 @@
         <button class="nav-item" id="nav-product-master" data-page="page-product-master">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-              <line x1="8" y1="21" x2="16" y2="21"/>
-              <line x1="12" y1="17" x2="12" y2="21"/>
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+              <line x1="8" y1="21" x2="16" y2="21" />
+              <line x1="12" y1="17" x2="12" y2="21" />
             </svg>
           </span>
           <span class="nav-label">Product Master</span>
@@ -63,8 +68,8 @@
         <button class="nav-item" id="nav-location-master" data-page="page-location-master">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-              <circle cx="12" cy="10" r="3"/>
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+              <circle cx="12" cy="10" r="3" />
             </svg>
           </span>
           <span class="nav-label">Location Master</span>
@@ -72,7 +77,7 @@
         <button class="nav-item" id="nav-sales-history" data-page="page-sales-history">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-              <polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/>
+              <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
             </svg>
           </span>
           <span class="nav-label">Sales History</span>
@@ -80,7 +85,7 @@
         <button class="nav-item" id="nav-admin" data-page="page-admin">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
             </svg>
           </span>
           <span class="nav-label">Admin</span>
@@ -113,63 +118,98 @@
         <div class="filter-panel" id="filter-panel">
           <div class="filter-panel-header">
             <div class="filter-panel-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46 22,3"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46 22,3" />
+              </svg>
               <span>Filter &amp; Generate</span>
             </div>
             <div class="grading-level-toggle" role="group" aria-label="Grading Level">
               <button class="level-btn active" id="level-class" data-level="class" aria-pressed="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                  <rect x="3" y="3" width="7" height="7" />
+                  <rect x="14" y="3" width="7" height="7" />
+                  <rect x="14" y="14" width="7" height="7" />
+                  <rect x="3" y="14" width="7" height="7" />
+                </svg>
                 Class Level
               </button>
               <button class="level-btn" id="level-subclass" data-level="subclass" aria-pressed="false">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="3"/><circle cx="4" cy="6" r="2"/><circle cx="20" cy="6" r="2"/><circle cx="4" cy="18" r="2"/><circle cx="20" cy="18" r="2"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                  <circle cx="12" cy="12" r="3" />
+                  <circle cx="4" cy="6" r="2" />
+                  <circle cx="20" cy="6" r="2" />
+                  <circle cx="4" cy="18" r="2" />
+                  <circle cx="20" cy="18" r="2" />
+                </svg>
                 Subclass Level
               </button>
             </div>
           </div>
           <div class="filter-grid">
             <div class="filter-group required">
-              <label for="dept-select" class="filter-label">Department <span class="required-badge">Required</span></label>
+              <label for="dept-select" class="filter-label">Department <span
+                  class="required-badge">Required</span></label>
               <div class="select-wrapper">
-                <select id="dept-select" class="filter-select" aria-required="true"><option value="">Select Department...</option></select>
+                <select id="dept-select" class="filter-select" aria-required="true">
+                  <option value="">Select Department...</option>
+                </select>
               </div>
             </div>
             <div class="filter-group required">
               <label for="class-select" class="filter-label">Class <span class="required-badge">Required</span></label>
               <div class="select-wrapper">
-                <select id="class-select" class="filter-select" disabled><option value="">Select Class...</option></select>
+                <select id="class-select" class="filter-select" disabled>
+                  <option value="">Select Class...</option>
+                </select>
               </div>
             </div>
             <div class="filter-group">
-              <label for="subclass-select" class="filter-label">Subclass <span class="optional-badge">Optional</span></label>
+              <label for="subclass-select" class="filter-label">Subclass <span
+                  class="optional-badge">Optional</span></label>
               <div class="select-wrapper">
-                <select id="subclass-select" class="filter-select" disabled><option value="">All Subclasses</option></select>
+                <select id="subclass-select" class="filter-select" disabled>
+                  <option value="">All Subclasses</option>
+                </select>
               </div>
             </div>
             <div class="filter-group">
-              <label for="country-select" class="filter-label">Country / Area <span class="optional-badge">Optional</span></label>
+              <label for="country-select" class="filter-label">Country / Area <span
+                  class="optional-badge">Optional</span></label>
               <div class="select-wrapper">
-                <select id="country-select" class="filter-select"><option value="">All Countries</option></select>
+                <select id="country-select" class="filter-select">
+                  <option value="">All Countries</option>
+                </select>
               </div>
             </div>
             <div class="filter-group">
-              <label for="store-select" class="filter-label">Store Name <span class="optional-badge">Optional</span></label>
+              <label for="store-select" class="filter-label">Store Name <span
+                  class="optional-badge">Optional</span></label>
               <div class="select-wrapper">
-                <select id="store-select" class="filter-select"><option value="">All Stores</option></select>
+                <select id="store-select" class="filter-select">
+                  <option value="">All Stores</option>
+                </select>
               </div>
             </div>
           </div>
           <div class="filter-actions">
             <button class="btn btn-secondary" id="btn-reset" type="button">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 1 0 .49-3.91"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                <polyline points="1,4 1,10 7,10" />
+                <path d="M3.51 15a9 9 0 1 0 .49-3.91" />
+              </svg>
               Reset
             </button>
             <button class="btn btn-primary" id="btn-search" type="button" disabled>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
               Search Grades
             </button>
             <button class="btn btn-generate" id="btn-generate" type="button" disabled>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polygon points="5,3 19,12 5,21 5,3"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                <polygon points="5,3 19,12 5,21 5,3" />
+              </svg>
               Generate Store Grading
             </button>
           </div>
@@ -184,62 +224,118 @@
               <span id="progress-sub">Aggregating sales data and computing store grades</span>
             </div>
           </div>
-          <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-bar"></div></div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="progress-bar"></div>
+          </div>
         </div>
 
         <!-- Stats -->
         <div class="stats-row" id="stats-row">
           <div class="stat-card">
-            <div class="stat-icon grade-1-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg></div>
-            <div><div class="stat-value" id="stat-grade1">—</div><div class="stat-label">Grade 1 Stores</div></div>
+            <div class="stat-icon grade-1-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                <polygon
+                  points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+              </svg></div>
+            <div>
+              <div class="stat-value" id="stat-grade1">—</div>
+              <div class="stat-label">Grade 1 Stores</div>
+            </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon grade-2-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg></div>
-            <div><div class="stat-value" id="stat-grade2">—</div><div class="stat-label">Grade 2 Stores</div></div>
+            <div class="stat-icon grade-2-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" width="20" height="20">
+                <polygon
+                  points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+              </svg></div>
+            <div>
+              <div class="stat-value" id="stat-grade2">—</div>
+              <div class="stat-label">Grade 2 Stores</div>
+            </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon grade-3-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
-            <div><div class="stat-value" id="stat-grade3">—</div><div class="stat-label">Grade 3 Stores</div></div>
+            <div class="stat-icon grade-3-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" width="20" height="20">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg></div>
+            <div>
+              <div class="stat-value" id="stat-grade3">—</div>
+              <div class="stat-label">Grade 3 Stores</div>
+            </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon total-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></div>
-            <div><div class="stat-value" id="stat-total">—</div><div class="stat-label">Total Results</div></div>
+            <div class="stat-icon total-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" width="20" height="20">
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 00-3-3.87" />
+                <path d="M16 3.13a4 4 0 010 7.75" />
+              </svg></div>
+            <div>
+              <div class="stat-value" id="stat-total">—</div>
+              <div class="stat-label">Total Results</div>
+            </div>
           </div>
         </div>
 
         <!-- Data Grid -->
         <div class="grid-container">
           <div class="grid-toolbar">
-            <div class="grid-info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg><span id="grid-count-label">Select filters and search to load data</span></div>
-            <div class="grid-actions"><button class="btn-icon" id="btn-export" title="Export to CSV" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button></div>
+            <div class="grid-info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                width="14" height="14">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <line x1="3" y1="9" x2="21" y2="9" />
+                <line x1="3" y1="15" x2="21" y2="15" />
+                <line x1="9" y1="3" x2="9" y2="21" />
+              </svg><span id="grid-count-label">Select filters and search to load data</span></div>
+            <div class="grid-actions"><button class="btn-icon" id="btn-export" title="Export to CSV" disabled><svg
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                  <polyline points="7,10 12,15 17,10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg></button></div>
           </div>
           <div class="table-wrapper">
             <div class="empty-state" id="empty-state">
-              <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="52" height="52"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg></div>
+              <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                  width="52" height="52">
+                  <polygon
+                    points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+                </svg></div>
               <h3 class="empty-title">No Data Yet</h3>
-              <p class="empty-desc">Select a Department and Class, then click <strong>Search Grades</strong> or <strong>Generate Store Grading</strong>.</p>
+              <p class="empty-desc">Select a Department and Class, then click <strong>Search Grades</strong> or
+                <strong>Generate Store Grading</strong>.</p>
             </div>
             <table class="data-table hidden" id="data-table">
-              <thead><tr>
-                <th class="sortable" data-sort="STORE_GRADE_ID">ID <span class="sort-icon">↕</span></th>
-                <th class="sortable" data-sort="BRAND">Brand <span class="sort-icon">↕</span></th>
-                <th class="sortable" data-sort="LOCATION">Location <span class="sort-icon">↕</span></th>
-                <th class="sortable" data-sort="STORE_NAME">Store Name <span class="sort-icon">↕</span></th>
-                <th class="sortable" data-sort="COUNTRY">Country <span class="sort-icon">↕</span></th>
-                <th class="sortable" data-sort="DEPT">Dept <span class="sort-icon">↕</span></th>
-                <th class="sortable" data-sort="CLASS">Class <span class="sort-icon">↕</span></th>
-                <th class="sortable" data-sort="SUBCLASS">Subclass <span class="sort-icon">↕</span></th>
-                <th class="sortable" data-sort="GRADE">Grade <span class="sort-icon">↕</span></th>
-                <th class="sortable" data-sort="CREATE_DATETIME">Created <span class="sort-icon">↕</span></th>
-                <th class="sortable" data-sort="LAST_UPDATE_DATETIME">Updated <span class="sort-icon">↕</span></th>
-              </tr></thead>
+              <thead>
+                <tr>
+                  <th class="sortable" data-sort="STORE_GRADE_ID">ID <span class="sort-icon">↕</span></th>
+                  <th class="sortable" data-sort="BRAND">Brand <span class="sort-icon">↕</span></th>
+                  <th class="sortable" data-sort="LOCATION">Location <span class="sort-icon">↕</span></th>
+                  <th class="sortable" data-sort="STORE_NAME">Store Name <span class="sort-icon">↕</span></th>
+                  <th class="sortable" data-sort="COUNTRY">Country <span class="sort-icon">↕</span></th>
+                  <th class="sortable" data-sort="DEPT">Dept <span class="sort-icon">↕</span></th>
+                  <th class="sortable" data-sort="CLASS">Class <span class="sort-icon">↕</span></th>
+                  <th class="sortable" data-sort="SUBCLASS">Subclass <span class="sort-icon">↕</span></th>
+                  <th class="sortable" data-sort="GRADE">Grade <span class="sort-icon">↕</span></th>
+                  <th class="sortable" data-sort="CREATE_DATETIME">Created <span class="sort-icon">↕</span></th>
+                  <th class="sortable" data-sort="LAST_UPDATE_DATETIME">Updated <span class="sort-icon">↕</span></th>
+                </tr>
+              </thead>
               <tbody id="table-body"></tbody>
             </table>
           </div>
           <div class="pagination">
-            <button class="page-btn" id="btn-prev" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="15,18 9,12 15,6"/></svg> Prev</button>
+            <button class="page-btn" id="btn-prev" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" width="15" height="15">
+                <polyline points="15,18 9,12 15,6" />
+              </svg> Prev</button>
             <div class="page-info" id="page-info">Page 1 of 1</div>
-            <button class="page-btn" id="btn-next" disabled>Next <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="9,18 15,12 9,6"/></svg></button>
+            <button class="page-btn" id="btn-next" disabled>Next <svg viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" width="15" height="15">
+                <polyline points="9,18 15,12 9,6" />
+              </svg></button>
           </div>
         </div>
       </section>
@@ -251,56 +347,80 @@
         <div class="page-header">
           <div>
             <h1 class="page-title">Product Master</h1>
-            <p class="page-desc">Browse and filter the full product option dimension with attributes like fabric, color, silhouette, and more.</p>
+            <p class="page-desc">Browse and filter the full product option dimension with attributes like fabric, color,
+              silhouette, and more.</p>
           </div>
         </div>
 
         <div class="filter-panel">
           <div class="filter-panel-header">
             <div class="filter-panel-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46 22,3"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46 22,3" />
+              </svg>
               <span>Filter Products</span>
             </div>
           </div>
           <div class="filter-grid">
             <div class="filter-group">
-              <label for="pm-brand-select" class="filter-label">Brand <span class="optional-badge">Optional</span></label>
+              <label for="pm-brand-select" class="filter-label">Brand <span
+                  class="optional-badge">Optional</span></label>
               <div class="select-wrapper">
-                <select id="pm-brand-select" class="filter-select"><option value="">All Brands</option></select>
+                <select id="pm-brand-select" class="filter-select">
+                  <option value="">All Brands</option>
+                </select>
               </div>
             </div>
             <div class="filter-group">
-              <label for="pm-dept-select" class="filter-label">Department <span class="optional-badge">Optional</span></label>
+              <label for="pm-dept-select" class="filter-label">Department <span
+                  class="optional-badge">Optional</span></label>
               <div class="select-wrapper">
-                <select id="pm-dept-select" class="filter-select"><option value="">All Departments</option></select>
+                <select id="pm-dept-select" class="filter-select">
+                  <option value="">All Departments</option>
+                </select>
               </div>
             </div>
             <div class="filter-group">
-              <label for="pm-class-select" class="filter-label">Class <span class="optional-badge">Optional</span></label>
+              <label for="pm-class-select" class="filter-label">Class <span
+                  class="optional-badge">Optional</span></label>
               <div class="select-wrapper">
-                <select id="pm-class-select" class="filter-select" disabled><option value="">All Classes</option></select>
+                <select id="pm-class-select" class="filter-select" disabled>
+                  <option value="">All Classes</option>
+                </select>
               </div>
             </div>
             <div class="filter-group">
-              <label for="pm-subclass-select" class="filter-label">Subclass <span class="optional-badge">Optional</span></label>
+              <label for="pm-subclass-select" class="filter-label">Subclass <span
+                  class="optional-badge">Optional</span></label>
               <div class="select-wrapper">
-                <select id="pm-subclass-select" class="filter-select" disabled><option value="">All Subclasses</option></select>
+                <select id="pm-subclass-select" class="filter-select" disabled>
+                  <option value="">All Subclasses</option>
+                </select>
               </div>
             </div>
             <div class="filter-group" style="grid-column: span 2">
-              <label for="pm-search" class="filter-label">Search by SKU / Description <span class="optional-badge">Optional</span></label>
+              <label for="pm-search" class="filter-label">Search by SKU / Description <span
+                  class="optional-badge">Optional</span></label>
               <div class="select-wrapper">
-                <input type="text" id="pm-search" class="filter-select" placeholder="e.g. 130213005_AMEC001 or Sneakers..." style="background-image:none; padding-right:12px;" />
+                <input type="text" id="pm-search" class="filter-select"
+                  placeholder="e.g. 130213005_AMEC001 or Sneakers..."
+                  style="background-image:none; padding-right:12px;" />
               </div>
             </div>
           </div>
           <div class="filter-actions">
             <button class="btn btn-secondary" id="pm-btn-reset" type="button">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 1 0 .49-3.91"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                <polyline points="1,4 1,10 7,10" />
+                <path d="M3.51 15a9 9 0 1 0 .49-3.91" />
+              </svg>
               Reset
             </button>
             <button class="btn btn-primary" id="pm-btn-search" type="button">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
               Search Products
             </button>
           </div>
@@ -308,29 +428,65 @@
 
         <div class="grid-container">
           <div class="grid-toolbar">
-            <div class="grid-info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg><span id="pm-count-label">Use filters to search the product catalog</span></div>
-            <div class="grid-actions"><button class="btn-icon" id="pm-btn-export" title="Export to CSV" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button></div>
+            <div class="grid-info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                width="14" height="14">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <line x1="3" y1="9" x2="21" y2="9" />
+                <line x1="3" y1="15" x2="21" y2="15" />
+                <line x1="9" y1="3" x2="9" y2="21" />
+              </svg><span id="pm-count-label">Use filters to search the product catalog</span></div>
+            <div class="grid-actions"><button class="btn-icon" id="pm-btn-export" title="Export to CSV" disabled><svg
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                  <polyline points="7,10 12,15 17,10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg></button></div>
           </div>
           <div class="table-wrapper">
             <div class="empty-state" id="pm-empty-state">
-              <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="52" height="52"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+              <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                  width="52" height="52">
+                  <rect x="2" y="3" width="20" height="14" rx="2" />
+                  <line x1="8" y1="21" x2="16" y2="21" />
+                  <line x1="12" y1="17" x2="12" y2="21" />
+                </svg></div>
               <h3 class="empty-title">No Products Loaded</h3>
-              <p class="empty-desc">Select filters and click <strong>Search Products</strong> to browse the product catalog.</p>
+              <p class="empty-desc">Select filters and click <strong>Search Products</strong> to browse the product
+                catalog.</p>
             </div>
             <table class="data-table hidden" id="pm-data-table">
-              <thead><tr>
-                <th>Brand</th><th>Option ID</th><th>Description</th><th>VPN</th>
-                <th>Dept</th><th>Class</th><th>Subclass</th>
-                <th>Gender</th><th>Fabric</th><th>Color</th><th>Season</th>
-                <th>Silhouette</th><th>Price Strategy</th><th>Selling Phase</th><th>Label</th>
-              </tr></thead>
+              <thead>
+                <tr>
+                  <th>Brand</th>
+                  <th>Option ID</th>
+                  <th>Description</th>
+                  <th>VPN</th>
+                  <th>Dept</th>
+                  <th>Class</th>
+                  <th>Subclass</th>
+                  <th>Gender</th>
+                  <th>Fabric</th>
+                  <th>Color</th>
+                  <th>Season</th>
+                  <th>Silhouette</th>
+                  <th>Price Strategy</th>
+                  <th>Selling Phase</th>
+                  <th>Label</th>
+                </tr>
+              </thead>
               <tbody id="pm-table-body"></tbody>
             </table>
           </div>
           <div class="pagination">
-            <button class="page-btn" id="pm-btn-prev" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="15,18 9,12 15,6"/></svg> Prev</button>
+            <button class="page-btn" id="pm-btn-prev" disabled><svg viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" width="15" height="15">
+                <polyline points="15,18 9,12 15,6" />
+              </svg> Prev</button>
             <div class="page-info" id="pm-page-info">Page 1 of 1</div>
-            <button class="page-btn" id="pm-btn-next" disabled>Next <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="9,18 15,12 9,6"/></svg></button>
+            <button class="page-btn" id="pm-btn-next" disabled>Next <svg viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" width="15" height="15">
+                <polyline points="9,18 15,12 9,6" />
+              </svg></button>
           </div>
         </div>
       </section>
@@ -342,14 +498,17 @@
         <div class="page-header">
           <div>
             <h1 class="page-title">Sales History</h1>
-            <p class="page-desc">Explore historical sales at any hierarchy level. Filter by product, store, and date range.</p>
+            <p class="page-desc">Explore historical sales at any hierarchy level. Filter by product, store, and date
+              range.</p>
           </div>
         </div>
 
         <div class="filter-panel">
           <div class="filter-panel-header">
             <div class="filter-panel-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46 22,3"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46 22,3" />
+              </svg>
               <span>Filter Sales</span>
             </div>
           </div>
@@ -359,72 +518,100 @@
             <div class="sh-toggle-group">
               <span class="sh-toggle-label">Product Level:</span>
               <div class="grading-level-toggle" role="group" aria-label="Product Hierarchy Level">
-                <button class="level-btn" id="sh-level-dept"     data-sh-level="dept"     aria-pressed="false">Dept</button>
-                <button class="level-btn active" id="sh-level-class" data-sh-level="class" aria-pressed="true">Class</button>
-                <button class="level-btn" id="sh-level-subclass" data-sh-level="subclass" aria-pressed="false">Subclass</button>
-                <button class="level-btn" id="sh-level-sku"      data-sh-level="sku"      aria-pressed="false">SKU</button>
+                <button class="level-btn" id="sh-level-dept" data-sh-level="dept" aria-pressed="false">Dept</button>
+                <button class="level-btn active" id="sh-level-class" data-sh-level="class"
+                  aria-pressed="true">Class</button>
+                <button class="level-btn" id="sh-level-subclass" data-sh-level="subclass"
+                  aria-pressed="false">Subclass</button>
+                <button class="level-btn" id="sh-level-sku" data-sh-level="sku" aria-pressed="false">SKU</button>
               </div>
             </div>
             <div class="sh-toggle-group">
               <span class="sh-toggle-label">Location Level:</span>
               <div class="grading-level-toggle" role="group" aria-label="Location Level">
-                <button class="level-btn" id="sh-loc-country" data-sh-loc="country" aria-pressed="false">Country</button>
-                <button class="level-btn active" id="sh-loc-store" data-sh-loc="store" aria-pressed="true">Store</button>
+                <button class="level-btn" id="sh-loc-country" data-sh-loc="country"
+                  aria-pressed="false">Country</button>
+                <button class="level-btn active" id="sh-loc-store" data-sh-loc="store"
+                  aria-pressed="true">Store</button>
               </div>
             </div>
           </div>
 
           <div class="filter-grid">
             <div class="filter-group">
-              <label for="sh-dept-select" class="filter-label">Department <span class="optional-badge">Optional</span></label>
+              <label for="sh-dept-select" class="filter-label">Department <span
+                  class="optional-badge">Optional</span></label>
               <div class="select-wrapper">
-                <select id="sh-dept-select" class="filter-select"><option value="">All Departments</option></select>
+                <select id="sh-dept-select" class="filter-select">
+                  <option value="">All Departments</option>
+                </select>
               </div>
             </div>
             <div class="filter-group">
-              <label for="sh-class-select" class="filter-label">Class <span class="optional-badge">Optional</span></label>
+              <label for="sh-class-select" class="filter-label">Class <span
+                  class="optional-badge">Optional</span></label>
               <div class="select-wrapper">
-                <select id="sh-class-select" class="filter-select" disabled><option value="">All Classes</option></select>
+                <select id="sh-class-select" class="filter-select" disabled>
+                  <option value="">All Classes</option>
+                </select>
               </div>
             </div>
             <div class="filter-group">
-              <label for="sh-subclass-select" class="filter-label">Subclass <span class="optional-badge">Optional</span></label>
+              <label for="sh-subclass-select" class="filter-label">Subclass <span
+                  class="optional-badge">Optional</span></label>
               <div class="select-wrapper">
-                <select id="sh-subclass-select" class="filter-select" disabled><option value="">All Subclasses</option></select>
+                <select id="sh-subclass-select" class="filter-select" disabled>
+                  <option value="">All Subclasses</option>
+                </select>
               </div>
             </div>
             <div class="filter-group">
-              <label for="sh-country-select" class="filter-label">Country / Area <span class="optional-badge">Optional</span></label>
+              <label for="sh-country-select" class="filter-label">Country / Area <span
+                  class="optional-badge">Optional</span></label>
               <div class="select-wrapper">
-                <select id="sh-country-select" class="filter-select"><option value="">All Countries</option></select>
+                <select id="sh-country-select" class="filter-select">
+                  <option value="">All Countries</option>
+                </select>
               </div>
             </div>
             <div class="filter-group">
-              <label for="sh-store-select" class="filter-label">Store <span class="optional-badge">Optional</span></label>
+              <label for="sh-store-select" class="filter-label">Store <span
+                  class="optional-badge">Optional</span></label>
               <div class="select-wrapper">
-                <select id="sh-store-select" class="filter-select"><option value="">All Stores</option></select>
+                <select id="sh-store-select" class="filter-select">
+                  <option value="">All Stores</option>
+                </select>
               </div>
             </div>
             <div class="filter-group">
-              <label for="sh-date-from" class="filter-label">Week From <span class="optional-badge">Optional</span></label>
+              <label for="sh-date-from" class="filter-label">Week From <span
+                  class="optional-badge">Optional</span></label>
               <div class="select-wrapper">
-                <input type="number" id="sh-date-from" class="filter-select" placeholder="e.g. 20240101" style="background-image:none; padding-right:12px;" />
+                <input type="number" id="sh-date-from" class="filter-select" placeholder="e.g. 20240101"
+                  style="background-image:none; padding-right:12px;" />
               </div>
             </div>
             <div class="filter-group">
               <label for="sh-date-to" class="filter-label">Week To <span class="optional-badge">Optional</span></label>
               <div class="select-wrapper">
-                <input type="number" id="sh-date-to" class="filter-select" placeholder="e.g. 20241231" style="background-image:none; padding-right:12px;" />
+                <input type="number" id="sh-date-to" class="filter-select" placeholder="e.g. 20241231"
+                  style="background-image:none; padding-right:12px;" />
               </div>
             </div>
           </div>
           <div class="filter-actions">
             <button class="btn btn-secondary" id="sh-btn-reset" type="button">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 1 0 .49-3.91"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                <polyline points="1,4 1,10 7,10" />
+                <path d="M3.51 15a9 9 0 1 0 .49-3.91" />
+              </svg>
               Reset
             </button>
             <button class="btn btn-primary" id="sh-btn-search" type="button">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
               View Sales
             </button>
           </div>
@@ -433,43 +620,92 @@
         <!-- Sales Stats -->
         <div class="stats-row" id="sh-stats-row">
           <div class="stat-card">
-            <div class="stat-icon" style="background:rgba(16,185,129,0.12);color:#10b981"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg></div>
-            <div><div class="stat-value" id="sh-stat-regular">—</div><div class="stat-label">Regular Units</div></div>
+            <div class="stat-icon" style="background:rgba(16,185,129,0.12);color:#10b981"><svg viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
+              </svg></div>
+            <div>
+              <div class="stat-value" id="sh-stat-regular">—</div>
+              <div class="stat-label">Regular Units</div>
+            </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon" style="background:rgba(59,130,246,0.12);color:#3b82f6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></div>
-            <div><div class="stat-value" id="sh-stat-promo">—</div><div class="stat-label">Promo Units</div></div>
+            <div class="stat-icon" style="background:rgba(59,130,246,0.12);color:#3b82f6"><svg viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                <path
+                  d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+              </svg></div>
+            <div>
+              <div class="stat-value" id="sh-stat-promo">—</div>
+              <div class="stat-label">Promo Units</div>
+            </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon" style="background:rgba(245,158,11,0.12);color:#f59e0b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
-            <div><div class="stat-value" id="sh-stat-mrkdwn">—</div><div class="stat-label">Markdown Units</div></div>
+            <div class="stat-icon" style="background:rgba(245,158,11,0.12);color:#f59e0b"><svg viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                <line x1="12" y1="1" x2="12" y2="23" />
+                <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+              </svg></div>
+            <div>
+              <div class="stat-value" id="sh-stat-mrkdwn">—</div>
+              <div class="stat-label">Markdown Units</div>
+            </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon total-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="2" y="2" width="9" height="9"/><rect x="13" y="2" width="9" height="9"/><rect x="2" y="13" width="9" height="9"/><rect x="13" y="13" width="9" height="9"/></svg></div>
-            <div><div class="stat-value" id="sh-stat-total">—</div><div class="stat-label">Total Units</div></div>
+            <div class="stat-icon total-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" width="20" height="20">
+                <rect x="2" y="2" width="9" height="9" />
+                <rect x="13" y="2" width="9" height="9" />
+                <rect x="2" y="13" width="9" height="9" />
+                <rect x="13" y="13" width="9" height="9" />
+              </svg></div>
+            <div>
+              <div class="stat-value" id="sh-stat-total">—</div>
+              <div class="stat-label">Total Units</div>
+            </div>
           </div>
         </div>
 
         <div class="grid-container">
           <div class="grid-toolbar">
-            <div class="grid-info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg><span id="sh-count-label">Use filters to explore sales data</span></div>
-            <div class="grid-actions"><button class="btn-icon" id="sh-btn-export" title="Export to CSV" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button></div>
+            <div class="grid-info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                width="14" height="14">
+                <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
+              </svg><span id="sh-count-label">Use filters to explore sales data</span></div>
+            <div class="grid-actions"><button class="btn-icon" id="sh-btn-export" title="Export to CSV" disabled><svg
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                  <polyline points="7,10 12,15 17,10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg></button></div>
           </div>
           <div class="table-wrapper">
             <div class="empty-state" id="sh-empty-state">
-              <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="52" height="52"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg></div>
+              <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                  width="52" height="52">
+                  <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
+                </svg></div>
               <h3 class="empty-title">No Sales Data Loaded</h3>
-              <p class="empty-desc">Select your hierarchy level, apply filters, and click <strong>View Sales</strong> to explore sales data.</p>
+              <p class="empty-desc">Select your hierarchy level, apply filters, and click <strong>View Sales</strong> to
+                explore sales data.</p>
             </div>
             <table class="data-table hidden" id="sh-data-table">
-              <thead><tr id="sh-table-head"></tr></thead>
+              <thead>
+                <tr id="sh-table-head"></tr>
+              </thead>
               <tbody id="sh-table-body"></tbody>
             </table>
           </div>
           <div class="pagination">
-            <button class="page-btn" id="sh-btn-prev" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="15,18 9,12 15,6"/></svg> Prev</button>
+            <button class="page-btn" id="sh-btn-prev" disabled><svg viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" width="15" height="15">
+                <polyline points="15,18 9,12 15,6" />
+              </svg> Prev</button>
             <div class="page-info" id="sh-page-info">Page 1 of 1</div>
-            <button class="page-btn" id="sh-btn-next" disabled>Next <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="9,18 15,12 9,6"/></svg></button>
+            <button class="page-btn" id="sh-btn-next" disabled>Next <svg viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" width="15" height="15">
+                <polyline points="9,18 15,12 9,6" />
+              </svg></button>
           </div>
         </div>
       </section>
@@ -489,7 +725,9 @@
         <div class="filter-panel">
           <div class="filter-panel-header">
             <div class="filter-panel-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46 22,3"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46 22,3" />
+              </svg>
               <span>Filter Locations</span>
             </div>
           </div>
@@ -498,30 +736,42 @@
             <div class="filter-group">
               <label for="loc-country-select" class="filter-label">Country / Area</label>
               <div class="select-wrapper">
-                <select id="loc-country-select" class="filter-select"><option value="">All Countries</option></select>
+                <select id="loc-country-select" class="filter-select">
+                  <option value="">All Countries</option>
+                </select>
               </div>
             </div>
             <div class="filter-group">
               <label for="loc-type-select" class="filter-label">Store Type</label>
               <div class="select-wrapper">
-                <select id="loc-type-select" class="filter-select"><option value="">All Types</option></select>
+                <select id="loc-type-select" class="filter-select">
+                  <option value="">All Types</option>
+                </select>
               </div>
             </div>
             <div class="filter-group" style="grid-column: span 2">
-              <label for="loc-search-input" class="filter-label">Search Store <span class="optional-badge">Optional</span></label>
+              <label for="loc-search-input" class="filter-label">Search Store <span
+                  class="optional-badge">Optional</span></label>
               <div class="select-wrapper">
-                <input type="text" id="loc-search-input" class="filter-select" placeholder="Search by Store ID or Name..." style="background-image:none; padding-right:12px;" />
+                <input type="text" id="loc-search-input" class="filter-select"
+                  placeholder="Search by Store ID or Name..." style="background-image:none; padding-right:12px;" />
               </div>
             </div>
           </div>
 
           <div class="filter-actions">
             <button class="btn btn-secondary" id="loc-btn-reset">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                <path d="M23 4v6h-6" />
+                <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" />
+              </svg>
               Reset
             </button>
             <button class="btn btn-primary" id="loc-btn-search">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
               Search
             </button>
           </div>
@@ -534,7 +784,11 @@
           </div>
           <div class="table-container shadow-sm">
             <div class="empty-state" id="loc-empty-state">
-              <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="48" height="48"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+              <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  width="48" height="48">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg></div>
               <h3 class="empty-title">No Locations Selected</h3>
               <p class="empty-desc">Apply filters or search to browse the store location master.</p>
             </div>
@@ -556,9 +810,15 @@
             </table>
           </div>
           <div class="pagination">
-            <button class="page-btn" id="loc-btn-prev" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="15,18 9,12 15,6"/></svg> Prev</button>
+            <button class="page-btn" id="loc-btn-prev" disabled><svg viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" width="15" height="15">
+                <polyline points="15,18 9,12 15,6" />
+              </svg> Prev</button>
             <div class="page-info" id="loc-page-info">Page 1 of 1</div>
-            <button class="page-btn" id="loc-btn-next" disabled>Next <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="9,18 15,12 9,6"/></svg></button>
+            <button class="page-btn" id="loc-btn-next" disabled>Next <svg viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" width="15" height="15">
+                <polyline points="9,18 15,12 9,6" />
+              </svg></button>
           </div>
         </div>
       </section>
@@ -577,7 +837,9 @@
         <div class="filter-panel">
           <div class="filter-panel-header">
             <div class="filter-panel-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
               <span>Grade Maintenance</span>
             </div>
           </div>
@@ -586,39 +848,55 @@
             <div class="filter-group">
               <label for="admin-brand-select" class="filter-label">Brand</label>
               <div class="select-wrapper">
-                <select id="admin-brand-select" class="filter-select"><option value="">All Brands</option></select>
+                <select id="admin-brand-select" class="filter-select">
+                  <option value="">All Brands</option>
+                </select>
               </div>
             </div>
             <div class="filter-group">
               <label for="admin-dept-select" class="filter-label">Department</label>
               <div class="select-wrapper">
-                <select id="admin-dept-select" class="filter-select"><option value="">All Departments</option></select>
+                <select id="admin-dept-select" class="filter-select">
+                  <option value="">All Departments</option>
+                </select>
               </div>
             </div>
             <div class="filter-group">
               <label for="admin-class-select" class="filter-label">Class</label>
               <div class="select-wrapper">
-                <select id="admin-class-select" class="filter-select" disabled><option value="">All Classes</option></select>
+                <select id="admin-class-select" class="filter-select" disabled>
+                  <option value="">All Classes</option>
+                </select>
               </div>
             </div>
             <div class="filter-group">
               <label for="admin-subclass-select" class="filter-label">Subclass</label>
               <div class="select-wrapper">
-                <select id="admin-subclass-select" class="filter-select" disabled><option value="">All Subclasses</option></select>
+                <select id="admin-subclass-select" class="filter-select" disabled>
+                  <option value="">All Subclasses</option>
+                </select>
               </div>
             </div>
           </div>
 
           <div class="filter-actions">
             <button type="button" class="btn btn-primary" id="admin-btn-view">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
               View Available Grades
             </button>
             <button type="button" class="btn btn-secondary" id="admin-btn-reset">Reset</button>
           </div>
-          
-          <div class="admin-notice" style="margin-top:15px; font-size: 0.75rem; color: var(--text-muted); display:flex; gap:8px; align-items:center;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+
+          <div class="admin-notice"
+            style="margin-top:15px; font-size: 0.75rem; color: var(--text-muted); display:flex; gap:8px; align-items:center;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
             <span>Caution: Deleting graded scopes will permanently remove all store assignments for that segment.</span>
           </div>
         </div>
@@ -629,14 +907,22 @@
             <div class="grid-info" id="admin-grid-label">Search or view available graded scopes</div>
             <div class="grid-actions">
               <button type="button" class="btn btn-danger hidden" id="admin-btn-bulk-delete">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  <line x1="10" y1="11" x2="10" y2="17" />
+                  <line x1="14" y1="11" x2="14" y2="17" />
+                </svg>
                 Delete Selected (<span id="admin-selected-count">0</span>)
               </button>
             </div>
           </div>
           <div class="table-container shadow-sm">
             <div class="empty-state" id="admin-empty-state">
-              <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="48" height="48"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg></div>
+              <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  width="48" height="48">
+                  <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
+                </svg></div>
               <h3 class="empty-title">No Scopes Found</h3>
               <p class="empty-desc">Use the filters above to discover existing store grades by Brand/Hierarchy.</p>
             </div>
@@ -662,15 +948,42 @@
   <!-- Toast Container -->
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
+  <!-- ─── DELETE CONFIRM MODAL (ADMIN) ────────────────────────── -->
+  <div class="modal-overlay hidden" id="admin-delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+    <div class="modal">
+      <div class="modal-header" style="border-bottom-color: var(--danger-subtle);">
+        <div class="modal-icon" style="color: var(--danger);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+        <h2 class="modal-title" id="delete-modal-title">Delete Store Grades</h2>
+      </div>
+      <div class="modal-body">
+        <p>You are about to permanently delete grades for <strong id="admin-delete-count-display">0</strong> selected segments.</p>
+        <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem;">
+          This action cannot be undone. All store-to-grade assignments for these scopes will be erased.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="admin-delete-cancel">Cancel</button>
+        <button type="button" class="btn btn-danger" id="admin-delete-confirm">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+          Confirm Delete
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ─── GENERATE CONFIRM MODAL ─────────────────────────────── -->
   <div class="modal-overlay hidden" id="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal">
       <div class="modal-header">
-        <div class="modal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><polygon points="5,3 19,12 5,21 5,3"/></svg></div>
+        <div class="modal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22"
+            height="22">
+            <polygon points="5,3 19,12 5,21 5,3" />
+          </svg></div>
         <h2 class="modal-title" id="modal-title">Generate Store Grading</h2>
       </div>
       <div class="modal-body">
-        <p>This will run <strong>K-means clustering</strong> on historical sales data and generate store grades for the selected scope.</p>
+        <p>This will run <strong>K-means clustering</strong> on historical sales data and generate store grades for the
+          selected scope.</p>
         <div class="modal-scope" id="modal-scope"></div>
         <div class="modal-option">
           <label class="modal-option-label">Number of Grade Clusters:</label>
@@ -681,14 +994,20 @@
           </div>
         </div>
         <p class="modal-warning">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
           Existing grades for this scope will be updated.
         </p>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
         <button class="btn btn-generate" id="modal-confirm">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polygon points="5,3 19,12 5,21 5,3"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+            <polygon points="5,3 19,12 5,21 5,3" />
+          </svg>
           Run Grading
         </button>
       </div>
@@ -697,4 +1016,5 @@
 
   <script src="app.js"></script>
 </body>
+
 </html>

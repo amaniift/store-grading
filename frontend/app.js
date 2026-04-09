@@ -18,7 +18,7 @@ const API_BASE = '';
 const $ = id => document.getElementById(id);
 
 function esc(str) {
-  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function fmt(n) {
@@ -42,8 +42,8 @@ async function apiFetch(path, options = {}) {
 
 const ICONS = {
   success: `<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="9,12 12,15 17,9"/></svg>`,
-  error:   `<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
-  info:    `<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+  error: `<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+  info: `<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
   warning: `<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
 };
 
@@ -82,7 +82,7 @@ async function checkHealth() {
 // SIDEBAR NAVIGATION
 // ═══════════════════════════════════════════════════════════════════
 
-const sidebar   = $('sidebar');
+const sidebar = $('sidebar');
 const sidebarToggle = $('sidebar-toggle');
 let sidebarCollapsed = false;
 
@@ -177,7 +177,7 @@ function populateSharedFilters() {
 
   const shStoreSel = $('sh-store-select');
   allFilters.stores.forEach(s => shStoreSel.appendChild(new Option(s.STORE_NAME || s.STORE, s.STORE)));
-  
+
   // ── Admin selects ──────────────────────────────────────────────
   const adminDeptSel = $('admin-dept-select');
   if (adminDeptSel) {
@@ -198,12 +198,12 @@ async function loadPmBrands() {
     brandSel.innerHTML = '<option value="">All Brands</option>';
     const adminBrandSel = $('admin-brand-select');
     if (adminBrandSel) adminBrandSel.innerHTML = '<option value="">All Brands</option>';
-    
+
     (data.brands || []).forEach(b => {
       brandSel.appendChild(new Option(b, b));
       if (adminBrandSel) adminBrandSel.appendChild(new Option(b, b));
     });
-  } catch {}
+  } catch { }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -253,13 +253,13 @@ $('class-select').addEventListener('change', () => {
   updateSgButtons();
 });
 
-$('subclass-select').addEventListener('change',  () => { sgState.filters.subclass = $('subclass-select').value || null; });
-$('country-select').addEventListener('change',   () => { sgState.filters.country  = $('country-select').value || null; });
-$('store-select').addEventListener('change',     () => { sgState.filters.store    = $('store-select').value || null; });
+$('subclass-select').addEventListener('change', () => { sgState.filters.subclass = $('subclass-select').value || null; });
+$('country-select').addEventListener('change', () => { sgState.filters.country = $('country-select').value || null; });
+$('store-select').addEventListener('change', () => { sgState.filters.store = $('store-select').value || null; });
 
 function updateSgButtons() {
   const ok = !!(sgState.filters.dept && sgState.filters.class);
-  $('btn-search').disabled   = !ok;
+  $('btn-search').disabled = !ok;
   $('btn-generate').disabled = !ok;
 }
 
@@ -267,9 +267,9 @@ function updateSgButtons() {
 [$('level-class'), $('level-subclass')].forEach(btn => {
   btn.addEventListener('click', () => {
     sgState.gradingLevel = btn.dataset.level;
-    $('level-class').classList.toggle('active',    sgState.gradingLevel === 'class');
+    $('level-class').classList.toggle('active', sgState.gradingLevel === 'class');
     $('level-subclass').classList.toggle('active', sgState.gradingLevel === 'subclass');
-    $('level-class').setAttribute('aria-pressed',    String(sgState.gradingLevel === 'class'));
+    $('level-class').setAttribute('aria-pressed', String(sgState.gradingLevel === 'class'));
     $('level-subclass').setAttribute('aria-pressed', String(sgState.gradingLevel === 'subclass'));
     if (sgState.gradingLevel === 'class') {
       $('subclass-select').value = '';
@@ -289,15 +289,15 @@ async function fetchSgGrades() {
   if (!sgState.filters.dept || !sgState.filters.class) return;
   const params = new URLSearchParams({ dept: sgState.filters.dept, class: sgState.filters.class, level: sgState.gradingLevel, page: sgState.page, page_size: sgState.pageSize });
   if (sgState.filters.subclass) params.set('subclass', sgState.filters.subclass);
-  if (sgState.filters.country)  params.set('country',  sgState.filters.country);
-  if (sgState.filters.store)    params.set('store',    sgState.filters.store);
+  if (sgState.filters.country) params.set('country', sgState.filters.country);
+  if (sgState.filters.store) params.set('store', sgState.filters.store);
   $('grid-count-label').textContent = 'Loading...';
   $('btn-search').disabled = true;
   try {
     const data = await apiFetch(`/api/store-grades?${params}`);
-    sgState.totalRows   = data.total;
+    sgState.totalRows = data.total;
     sgState.gradeCounts = data.grade_counts || {};
-    sgState.tableData   = data.data;
+    sgState.tableData = data.data;
     renderSgTable(); renderSgPagination(); renderSgStats();
     $('btn-export').disabled = data.data.length === 0;
   } catch (e) { showToast('error', 'Search Failed', e.message); }
@@ -355,7 +355,7 @@ function renderSgStats() {
   $('stat-grade1').textContent = c['1'] || 0;
   $('stat-grade2').textContent = c['2'] || 0;
   $('stat-grade3').textContent = c['3'] || 0;
-  $('stat-total').textContent  = sgState.totalRows;
+  $('stat-total').textContent = sgState.totalRows;
 }
 
 function renderSgPagination() {
@@ -377,7 +377,7 @@ document.querySelectorAll('#data-table th.sortable').forEach(th => {
     const col = th.dataset.sort;
     if (sgState.sortCol === col) sgState.sortDir = sgState.sortDir === 'asc' ? 'desc' : 'asc';
     else { sgState.sortCol = col; sgState.sortDir = 'asc'; }
-    document.querySelectorAll('#data-table th').forEach(h => { h.classList.remove('sort-asc','sort-desc'); h.removeAttribute('aria-sort'); });
+    document.querySelectorAll('#data-table th').forEach(h => { h.classList.remove('sort-asc', 'sort-desc'); h.removeAttribute('aria-sort'); });
     th.classList.add(sgState.sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
     th.setAttribute('aria-sort', sgState.sortDir === 'asc' ? 'ascending' : 'descending');
     renderSgTable();
@@ -386,7 +386,7 @@ document.querySelectorAll('#data-table th.sortable').forEach(th => {
 
 // ── Reset ─────────────────────────────────────────────────────────
 $('btn-reset').addEventListener('click', () => {
-  ['dept-select','class-select','subclass-select','country-select','store-select'].forEach(id => { $(id).value = ''; });
+  ['dept-select', 'class-select', 'subclass-select', 'country-select', 'store-select'].forEach(id => { $(id).value = ''; });
   $('class-select').disabled = true;
   $('subclass-select').disabled = true;
   Object.assign(sgState.filters, { dept: null, class: null, subclass: null, country: null, store: null });
@@ -394,19 +394,19 @@ $('btn-reset').addEventListener('click', () => {
   $('btn-search').disabled = true; $('btn-generate').disabled = true; $('btn-export').disabled = true;
   $('empty-state').classList.remove('hidden'); $('data-table').classList.add('hidden');
   $('grid-count-label').textContent = 'Select filters and search to load data';
-  ['stat-grade1','stat-grade2','stat-grade3','stat-total'].forEach(id => $(id).textContent = '—');
+  ['stat-grade1', 'stat-grade2', 'stat-grade3', 'stat-total'].forEach(id => $(id).textContent = '—');
   renderSgPagination();
 });
 
 // ── Export CSV ────────────────────────────────────────────────────
 $('btn-export').addEventListener('click', () => {
   if (!sgState.tableData.length) return;
-  const headers = ['STORE_GRADE_ID','BRAND','LOCATION','STORE_NAME','COUNTRY','DEPT','DEPT_NAME','CLASS','CLASS_NAME','SUBCLASS','SUB_NAME','GRADE','CREATE_DATETIME','LAST_UPDATE_DATETIME'];
-  const rows = sgState.tableData.map(r => headers.map(h => `"${String(r[h] ?? '').replace(/"/g,'""')}"`).join(','));
-  const csv  = [headers.join(','), ...rows].join('\r\n');
+  const headers = ['STORE_GRADE_ID', 'BRAND', 'LOCATION', 'STORE_NAME', 'COUNTRY', 'DEPT', 'DEPT_NAME', 'CLASS', 'CLASS_NAME', 'SUBCLASS', 'SUB_NAME', 'GRADE', 'CREATE_DATETIME', 'LAST_UPDATE_DATETIME'];
+  const rows = sgState.tableData.map(r => headers.map(h => `"${String(r[h] ?? '').replace(/"/g, '""')}"`).join(','));
+  const csv = [headers.join(','), ...rows].join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-  a.download = `store_grades_dept${sgState.filters.dept}_class${sgState.filters.class}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.download = `store_grades_dept${sgState.filters.dept}_class${sgState.filters.class}_${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   showToast('success', 'Exported', `${sgState.tableData.length} rows downloaded`);
 });
@@ -415,16 +415,16 @@ $('btn-export').addEventListener('click', () => {
 $('btn-generate').addEventListener('click', openGenerateModal);
 
 function openGenerateModal() {
-  const dept    = $('dept-select').options[$('dept-select').selectedIndex]?.text    || sgState.filters.dept;
-  const cls     = $('class-select').options[$('class-select').selectedIndex]?.text  || sgState.filters.class;
-  const sub     = $('subclass-select').value ? ($('subclass-select').options[$('subclass-select').selectedIndex]?.text || sgState.filters.subclass) : null;
+  const dept = $('dept-select').options[$('dept-select').selectedIndex]?.text || sgState.filters.dept;
+  const cls = $('class-select').options[$('class-select').selectedIndex]?.text || sgState.filters.class;
+  const sub = $('subclass-select').value ? ($('subclass-select').options[$('subclass-select').selectedIndex]?.text || sgState.filters.subclass) : null;
   const country = sgState.filters.country || 'All Countries';
-  const store   = sgState.filters.store   ? ($('store-select').options[$('store-select').selectedIndex]?.text || sgState.filters.store) : 'All Stores';
+  const store = sgState.filters.store ? ($('store-select').options[$('store-select').selectedIndex]?.text || sgState.filters.store) : 'All Stores';
   const levelLabel = sgState.gradingLevel === 'class' ? 'Class Level' : 'Subclass Level';
-  const levelDesc  = sgState.gradingLevel === 'class'
+  const levelDesc = sgState.gradingLevel === 'class'
     ? 'Generates <strong>one grade per store</strong> for the entire Class.'
     : sub ? `Grade for <strong>Subclass: ${esc(sub)}</strong> only.`
-          : 'Generates grades <strong>independently per subclass</strong>.';
+      : 'Generates grades <strong>independently per subclass</strong>.';
 
   $('modal-scope').innerHTML = `
     <div class="scope-row"><span class="scope-key">Granularity</span><span class="scope-value" style="color:var(--accent-generate)">${esc(levelLabel)}</span></div>
@@ -445,7 +445,7 @@ document.querySelectorAll('.cluster-btn').forEach(btn => {
   });
 });
 
-$('modal-cancel').addEventListener('click',  () => $('confirm-modal').classList.add('hidden'));
+$('modal-cancel').addEventListener('click', () => $('confirm-modal').classList.add('hidden'));
 $('confirm-modal').addEventListener('click', e => { if (e.target === $('confirm-modal')) $('confirm-modal').classList.add('hidden'); });
 $('modal-confirm').addEventListener('click', async () => { $('confirm-modal').classList.add('hidden'); await runSgGrading(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') $('confirm-modal').classList.add('hidden'); });
@@ -458,8 +458,8 @@ async function runSgGrading() {
   try {
     const payload = { dept: parseInt(sgState.filters.dept, 10), class: parseInt(sgState.filters.class, 10), level: sgState.gradingLevel, clusters: sgState.selectedClusters };
     if (sgState.filters.subclass) payload.subclass = parseInt(sgState.filters.subclass, 10);
-    if (sgState.filters.country)  payload.country  = sgState.filters.country;
-    if (sgState.filters.store)    payload.store     = parseInt(sgState.filters.store, 10);
+    if (sgState.filters.country) payload.country = sgState.filters.country;
+    if (sgState.filters.store) payload.store = parseInt(sgState.filters.store, 10);
     animateSgBar(30, 80, 4000);
     updateSgProgress('Computing grades...', 'K-means clustering in progress');
     const result = await apiFetch('/api/generate-grades', { method: 'POST', body: JSON.stringify(payload) });
@@ -472,7 +472,7 @@ async function runSgGrading() {
   finally { sgState.isGenerating = false; }
 }
 
-function showSgProgress(show, title='', sub='') {
+function showSgProgress(show, title = '', sub = '') {
   if (show) {
     $('progress-title').textContent = title; $('progress-sub').textContent = sub;
     $('progress-banner').classList.remove('hidden'); $('progress-bar').style.width = '0%';
@@ -482,7 +482,7 @@ function showSgProgress(show, title='', sub='') {
 function updateSgProgress(title, sub) { $('progress-title').textContent = title; $('progress-sub').textContent = sub; }
 function animateSgBar(from, to, dur) {
   const s = Date.now();
-  const step = () => { const p = Math.min(1,(Date.now()-s)/dur); $('progress-bar').style.width=`${from+(to-from)*p}%`; if(p<1) requestAnimationFrame(step); };
+  const step = () => { const p = Math.min(1, (Date.now() - s) / dur); $('progress-bar').style.width = `${from + (to - from) * p}%`; if (p < 1) requestAnimationFrame(step); };
   requestAnimationFrame(step);
 }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -498,26 +498,26 @@ $('pm-dept-select').addEventListener('change', () => {
   const dept = $('pm-dept-select').value;
   const pmClassSel = $('pm-class-select');
   pmClassSel.innerHTML = '<option value="">All Classes</option>';
-  pmClassSel.disabled  = !dept;
+  pmClassSel.disabled = !dept;
   if (dept) {
     allFilters.classes.filter(c => c.DEPT == dept).forEach(c => pmClassSel.appendChild(new Option(c.CLASS_NAME ? `${c.CLASS} — ${c.CLASS_NAME}` : `${c.CLASS}`, c.CLASS)));
   }
   $('pm-subclass-select').innerHTML = '<option value="">All Subclasses</option>';
-  $('pm-subclass-select').disabled  = true;
+  $('pm-subclass-select').disabled = true;
 });
 
 $('pm-class-select').addEventListener('change', () => {
   const dept = $('pm-dept-select').value, cls = $('pm-class-select').value;
   const pmSubSel = $('pm-subclass-select');
   pmSubSel.innerHTML = '<option value="">All Subclasses</option>';
-  pmSubSel.disabled  = !cls;
+  pmSubSel.disabled = !cls;
   if (cls) {
     allFilters.subclasses.filter(s => s.DEPT == dept && s.CLASS == cls).forEach(s => pmSubSel.appendChild(new Option(s.SUB_NAME ? `${s.SUBCLASS} — ${s.SUB_NAME}` : `${s.SUBCLASS}`, s.SUBCLASS)));
   }
 });
 
 $('pm-btn-reset').addEventListener('click', () => {
-  ['pm-brand-select','pm-dept-select','pm-class-select','pm-subclass-select'].forEach(id => { $(id).value = ''; });
+  ['pm-brand-select', 'pm-dept-select', 'pm-class-select', 'pm-subclass-select'].forEach(id => { $(id).value = ''; });
   $('pm-search').value = '';
   $('pm-class-select').disabled = $('pm-subclass-select').disabled = true;
   pmState.page = 1; pmState.total = 0; pmState.data = [];
@@ -536,11 +536,11 @@ async function fetchPm() {
   const params = new URLSearchParams({ page: pmState.page, page_size: pmState.pageSize });
   const dept = $('pm-dept-select').value, cls = $('pm-class-select').value, sub = $('pm-subclass-select').value;
   const brand = $('pm-brand-select').value, search = $('pm-search').value.trim();
-  if (dept)   params.set('dept',     dept);
-  if (cls)    params.set('class',    cls);
-  if (sub)    params.set('subclass', sub);
-  if (brand)  params.set('brand',    brand);
-  if (search) params.set('search',   search);
+  if (dept) params.set('dept', dept);
+  if (cls) params.set('class', cls);
+  if (sub) params.set('subclass', sub);
+  if (brand) params.set('brand', brand);
+  if (search) params.set('search', search);
 
   $('pm-count-label').textContent = 'Loading...';
   try {
@@ -565,9 +565,9 @@ function renderPmTable() {
     <td class="mono" style="font-size:0.72rem">${esc(r.OPTION_ID || '—')}</td>
     <td style="max-width:220px;white-space:normal">${esc(r.OPTION_DESC || '—')}</td>
     <td class="mono" style="font-size:0.7rem">${esc(r.VPN || '—')}</td>
-    <td class="mono">${r.DEPT ?? '—'}<br><span style="font-size:0.68rem;color:var(--text-muted)">${esc(r.DEPT_NAME||'')}</span></td>
-    <td class="mono">${r.CLASS ?? '—'}<br><span style="font-size:0.68rem;color:var(--text-muted)">${esc(r.CLASS_NAME||'')}</span></td>
-    <td class="mono">${r.SUBCLASS ?? '—'}<br><span style="font-size:0.68rem;color:var(--text-muted)">${esc(r.SUB_NAME||'')}</span></td>
+    <td class="mono">${r.DEPT ?? '—'}<br><span style="font-size:0.68rem;color:var(--text-muted)">${esc(r.DEPT_NAME || '')}</span></td>
+    <td class="mono">${r.CLASS ?? '—'}<br><span style="font-size:0.68rem;color:var(--text-muted)">${esc(r.CLASS_NAME || '')}</span></td>
+    <td class="mono">${r.SUBCLASS ?? '—'}<br><span style="font-size:0.68rem;color:var(--text-muted)">${esc(r.SUB_NAME || '')}</span></td>
     <td>${esc(r.GENDER || '—')}</td>
     <td>${esc(r.FABRIC || '—')}</td>
     <td>${esc(r.COLOR_SHADE || '—')}</td>
@@ -587,14 +587,14 @@ function renderPmPagination() {
 }
 
 $('pm-btn-prev').addEventListener('click', () => { if (pmState.page > 1) { pmState.page--; fetchPm(); } });
-$('pm-btn-next').addEventListener('click', () => { const tp=Math.ceil(pmState.total/pmState.pageSize); if(pmState.page<tp){pmState.page++;fetchPm();} });
+$('pm-btn-next').addEventListener('click', () => { const tp = Math.ceil(pmState.total / pmState.pageSize); if (pmState.page < tp) { pmState.page++; fetchPm(); } });
 
 $('pm-btn-export').addEventListener('click', () => {
   if (!pmState.data.length) return;
-  const headers = ['BRAND','OPTION_ID','OPTION_DESC','VPN','DEPT','DEPT_NAME','CLASS','CLASS_NAME','SUBCLASS','SUB_NAME','GENDER','FABRIC','COLOR_SHADE','COLOR_FAMILY','SEASON_CODE','SEASONALITY','SILHOUETTE','PRICE_STRATEGY','SELLING_PHASE','LABEL','COLLECTION'];
-  const rows = pmState.data.map(r => headers.map(h => `"${String(r[h]??'').replace(/"/g,'""')}"`).join(','));
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([[headers.join(','),...rows].join('\r\n')], {type:'text/csv'}));
-  a.download = `product_master_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  const headers = ['BRAND', 'OPTION_ID', 'OPTION_DESC', 'VPN', 'DEPT', 'DEPT_NAME', 'CLASS', 'CLASS_NAME', 'SUBCLASS', 'SUB_NAME', 'GENDER', 'FABRIC', 'COLOR_SHADE', 'COLOR_FAMILY', 'SEASON_CODE', 'SEASONALITY', 'SILHOUETTE', 'PRICE_STRATEGY', 'SELLING_PHASE', 'LABEL', 'COLLECTION'];
+  const rows = pmState.data.map(r => headers.map(h => `"${String(r[h] ?? '').replace(/"/g, '""')}"`).join(','));
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([[headers.join(','), ...rows].join('\r\n')], { type: 'text/csv' }));
+  a.download = `product_master_${new Date().toISOString().slice(0, 10)}.csv`; a.click();
   showToast('success', 'Exported', `${pmState.data.length} products downloaded`);
 });
 
@@ -606,8 +606,8 @@ const locState = { page: 1, pageSize: 50, total: 0, data: [] };
 
 $('loc-btn-reset').addEventListener('click', () => {
   $('loc-country-select').value = '';
-  $('loc-type-select').value    = '';
-  $('loc-search-input').value   = '';
+  $('loc-type-select').value = '';
+  $('loc-search-input').value = '';
   locState.page = 1; locState.total = 0; locState.data = [];
   $('loc-empty-state').classList.remove('hidden'); $('loc-data-table').classList.add('hidden');
   $('loc-count-label').textContent = 'Use filters to browse store locations';
@@ -619,12 +619,12 @@ $('loc-btn-search').addEventListener('click', () => { locState.page = 1; fetchLo
 async function fetchLocs() {
   const params = new URLSearchParams({ page: locState.page, page_size: locState.pageSize });
   const country = $('loc-country-select').value;
-  const type    = $('loc-type-select').value;
-  const search  = $('loc-search-input').value.trim();
+  const type = $('loc-type-select').value;
+  const search = $('loc-search-input').value.trim();
 
   if (country) params.set('country', country);
-  if (type)    params.set('type',    type);
-  if (search)  params.set('search',  search);
+  if (type) params.set('type', type);
+  if (search) params.set('search', search);
 
   $('loc-count-label').textContent = 'Loading...';
   try {
@@ -640,7 +640,7 @@ function renderLocTable() {
     $('loc-count-label').textContent = 'No locations found'; return;
   }
   $('loc-empty-state').classList.add('hidden'); $('loc-data-table').classList.remove('hidden');
-  const start = (locState.page-1)*locState.pageSize+1, end = Math.min(start+locState.data.length-1, locState.total);
+  const start = (locState.page - 1) * locState.pageSize + 1, end = Math.min(start + locState.data.length - 1, locState.total);
   $('loc-count-label').textContent = `Showing ${start}–${end} of ${locState.total} rows`;
 
   $('loc-table-body').innerHTML = locState.data.map(r => `
@@ -665,8 +665,8 @@ function renderLocPagination() {
   $('loc-btn-next').disabled = locState.page >= tp;
 }
 
-$('loc-btn-prev').addEventListener('click', () => { if(locState.page>1){locState.page--;fetchLocs();} });
-$('loc-btn-next').addEventListener('click', () => { const tp=Math.ceil(locState.total/locState.pageSize);if(locState.page<tp){locState.page++;fetchLocs();} });
+$('loc-btn-prev').addEventListener('click', () => { if (locState.page > 1) { locState.page--; fetchLocs(); } });
+$('loc-btn-next').addEventListener('click', () => { const tp = Math.ceil(locState.total / locState.pageSize); if (locState.page < tp) { locState.page++; fetchLocs(); } });
 
 
 // ══════════════ PAGE 3: SALES HISTORY ═══════════════════════════
@@ -678,8 +678,8 @@ const shState = { level: 'class', locLevel: 'store', page: 1, pageSize: 50, tota
 document.querySelectorAll('[data-sh-level]').forEach(btn => {
   btn.addEventListener('click', () => {
     shState.level = btn.dataset.shLevel;
-    document.querySelectorAll('[data-sh-level]').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed','false'); });
-    btn.classList.add('active'); btn.setAttribute('aria-pressed','true');
+    document.querySelectorAll('[data-sh-level]').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
+    btn.classList.add('active'); btn.setAttribute('aria-pressed', 'true');
   });
 });
 
@@ -687,9 +687,9 @@ document.querySelectorAll('[data-sh-level]').forEach(btn => {
 document.querySelectorAll('[data-sh-loc]').forEach(btn => {
   btn.addEventListener('click', () => {
     shState.locLevel = btn.dataset.shLoc;
-    document.querySelectorAll('[data-sh-loc]').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed','false'); });
-    btn.classList.add('active'); btn.setAttribute('aria-pressed','true');
-    
+    document.querySelectorAll('[data-sh-loc]').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
+    btn.classList.add('active'); btn.setAttribute('aria-pressed', 'true');
+
     // Disable store filter if country level is selected
     const storeSel = $('sh-store-select');
     if (shState.locLevel === 'country') {
@@ -706,29 +706,29 @@ $('sh-dept-select').addEventListener('change', () => {
   const dept = $('sh-dept-select').value;
   const shClassSel = $('sh-class-select');
   shClassSel.innerHTML = '<option value="">All Classes</option>';
-  shClassSel.disabled  = !dept;
+  shClassSel.disabled = !dept;
   if (dept) allFilters.classes.filter(c => c.DEPT == dept).forEach(c => shClassSel.appendChild(new Option(c.CLASS_NAME ? `${c.CLASS} — ${c.CLASS_NAME}` : `${c.CLASS}`, c.CLASS)));
   $('sh-subclass-select').innerHTML = '<option value="">All Subclasses</option>';
-  $('sh-subclass-select').disabled  = true;
+  $('sh-subclass-select').disabled = true;
 });
 
 $('sh-class-select').addEventListener('change', () => {
   const dept = $('sh-dept-select').value, cls = $('sh-class-select').value;
   const shSubSel = $('sh-subclass-select');
   shSubSel.innerHTML = '<option value="">All Subclasses</option>';
-  shSubSel.disabled  = !cls;
+  shSubSel.disabled = !cls;
   if (cls) allFilters.subclasses.filter(s => s.DEPT == dept && s.CLASS == cls).forEach(s => shSubSel.appendChild(new Option(s.SUB_NAME ? `${s.SUBCLASS} — ${s.SUB_NAME}` : `${s.SUBCLASS}`, s.SUBCLASS)));
 });
 
 $('sh-btn-reset').addEventListener('click', () => {
-  ['sh-dept-select','sh-class-select','sh-subclass-select','sh-country-select','sh-store-select'].forEach(id => { $(id).value=''; });
+  ['sh-dept-select', 'sh-class-select', 'sh-subclass-select', 'sh-country-select', 'sh-store-select'].forEach(id => { $(id).value = ''; });
   $('sh-date-from').value = ''; $('sh-date-to').value = '';
   $('sh-class-select').disabled = $('sh-subclass-select').disabled = true;
   shState.page = 1; shState.total = 0; shState.data = [];
   $('sh-empty-state').classList.remove('hidden'); $('sh-data-table').classList.add('hidden');
   $('sh-count-label').textContent = 'Use filters to explore sales data';
   $('sh-btn-export').disabled = true;
-  ['sh-stat-regular','sh-stat-promo','sh-stat-mrkdwn','sh-stat-total'].forEach(id => $(id).textContent='—');
+  ['sh-stat-regular', 'sh-stat-promo', 'sh-stat-mrkdwn', 'sh-stat-total'].forEach(id => $(id).textContent = '—');
   renderShPagination();
 });
 
@@ -736,20 +736,20 @@ $('sh-btn-search').addEventListener('click', () => { shState.page = 1; fetchSh()
 
 async function fetchSh() {
   const params = new URLSearchParams({ level: shState.level, loc_level: shState.locLevel, page: shState.page, page_size: shState.pageSize });
-  const dept     = $('sh-dept-select').value;
-  const cls      = $('sh-class-select').value;
-  const sub      = $('sh-subclass-select').value;
-  const country  = $('sh-country-select').value;
-  const store    = $('sh-store-select').value;
+  const dept = $('sh-dept-select').value;
+  const cls = $('sh-class-select').value;
+  const sub = $('sh-subclass-select').value;
+  const country = $('sh-country-select').value;
+  const store = $('sh-store-select').value;
   const dateFrom = $('sh-date-from').value.trim();
-  const dateTo   = $('sh-date-to').value.trim();
-  if (dept)     params.set('dept',      dept);
-  if (cls)      params.set('class',     cls);
-  if (sub)      params.set('subclass',  sub);
-  if (country)  params.set('country',   country);
-  if (store)    params.set('store',     store);
+  const dateTo = $('sh-date-to').value.trim();
+  if (dept) params.set('dept', dept);
+  if (cls) params.set('class', cls);
+  if (sub) params.set('subclass', sub);
+  if (country) params.set('country', country);
+  if (store) params.set('store', store);
   if (dateFrom) params.set('date_from', dateFrom);
-  if (dateTo)   params.set('date_to',   dateTo);
+  if (dateTo) params.set('date_to', dateTo);
 
   $('sh-count-label').textContent = 'Loading...';
   try {
@@ -761,29 +761,29 @@ async function fetchSh() {
 }
 
 function renderShStats() {
-  let reg=0, pro=0, mkd=0, tot=0;
-  shState.data.forEach(r => { reg += r.REGULAR_UNITS||0; pro += r.PROMO_UNITS||0; mkd += r.MRKDWN_UNITS||0; tot += r.TOTAL_UNITS||0; });
+  let reg = 0, pro = 0, mkd = 0, tot = 0;
+  shState.data.forEach(r => { reg += r.REGULAR_UNITS || 0; pro += r.PROMO_UNITS || 0; mkd += r.MRKDWN_UNITS || 0; tot += r.TOTAL_UNITS || 0; });
   $('sh-stat-regular').textContent = fmt(reg);
-  $('sh-stat-promo').textContent   = fmt(pro);
-  $('sh-stat-mrkdwn').textContent  = fmt(mkd);
-  $('sh-stat-total').textContent   = fmt(tot);
+  $('sh-stat-promo').textContent = fmt(pro);
+  $('sh-stat-mrkdwn').textContent = fmt(mkd);
+  $('sh-stat-total').textContent = fmt(tot);
 }
 
 // Dynamic column headers per level
 const SH_LEVEL_COLS = {
-  dept:     ['BRAND','DEPT','DEPT_NAME'],
-  class:    ['BRAND','DEPT','DEPT_NAME','CLASS','CLASS_NAME'],
-  subclass: ['BRAND','DEPT','DEPT_NAME','CLASS','CLASS_NAME','SUBCLASS','SUB_NAME'],
-  sku:      ['BRAND','DEPT','DEPT_NAME','CLASS','CLASS_NAME','SUBCLASS','SUB_NAME','OPTION_ID','OPTION_DESC'],
+  dept: ['BRAND', 'DEPT', 'DEPT_NAME'],
+  class: ['BRAND', 'DEPT', 'DEPT_NAME', 'CLASS', 'CLASS_NAME'],
+  subclass: ['BRAND', 'DEPT', 'DEPT_NAME', 'CLASS', 'CLASS_NAME', 'SUBCLASS', 'SUB_NAME'],
+  sku: ['BRAND', 'DEPT', 'DEPT_NAME', 'CLASS', 'CLASS_NAME', 'SUBCLASS', 'SUB_NAME', 'OPTION_ID', 'OPTION_DESC'],
 };
 
 // User-friendly column labels
 const COL_LABELS = {
-  BRAND:'Brand', DEPT:'Dept', DEPT_NAME:'Dept Name', CLASS:'Class', CLASS_NAME:'Class Name',
-  SUBCLASS:'Subclass', SUB_NAME:'Sub Name', OPTION_ID:'Option ID', OPTION_DESC:'Description',
-  STORE:'Store', STORE_NAME:'Store Name', COUNTRY:'Country',
-  REGULAR_UNITS:'Regular', PROMO_UNITS:'Promo', MRKDWN_UNITS:'Markdown', TOTAL_UNITS:'Total Units',
-  BASE_HISTORY:'Base Hist', WEEKS_WITH_SALES:'Weeks',
+  BRAND: 'Brand', DEPT: 'Dept', DEPT_NAME: 'Dept Name', CLASS: 'Class', CLASS_NAME: 'Class Name',
+  SUBCLASS: 'Subclass', SUB_NAME: 'Sub Name', OPTION_ID: 'Option ID', OPTION_DESC: 'Description',
+  STORE: 'Store', STORE_NAME: 'Store Name', COUNTRY: 'Country',
+  REGULAR_UNITS: 'Regular', PROMO_UNITS: 'Promo', MRKDWN_UNITS: 'Markdown', TOTAL_UNITS: 'Total Units',
+  BASE_HISTORY: 'Base Hist', WEEKS_WITH_SALES: 'Weeks',
 };
 
 function renderShTable(level) {
@@ -792,19 +792,19 @@ function renderShTable(level) {
     $('sh-count-label').textContent = 'No sales data found'; return;
   }
   $('sh-empty-state').classList.add('hidden'); $('sh-data-table').classList.remove('hidden');
-  const start = (shState.page-1)*shState.pageSize+1, end = Math.min(start+shState.data.length-1, shState.total);
+  const start = (shState.page - 1) * shState.pageSize + 1, end = Math.min(start + shState.data.length - 1, shState.total);
   $('sh-count-label').textContent = `Showing ${start}–${end} of ${shState.total} rows`;
 
-  const baseAlwaysCols = ['COUNTRY','REGULAR_UNITS','PROMO_UNITS','MRKDWN_UNITS','TOTAL_UNITS','BASE_HISTORY','WEEKS_WITH_SALES'];
-  const locCols = shState.locLevel === 'store' ? ['STORE','STORE_NAME'] : [];
+  const baseAlwaysCols = ['COUNTRY', 'REGULAR_UNITS', 'PROMO_UNITS', 'MRKDWN_UNITS', 'TOTAL_UNITS', 'BASE_HISTORY', 'WEEKS_WITH_SALES'];
+  const locCols = shState.locLevel === 'store' ? ['STORE', 'STORE_NAME'] : [];
   const cols = [...(SH_LEVEL_COLS[level] || SH_LEVEL_COLS.class), ...locCols, ...baseAlwaysCols];
 
   // Header
   $('sh-table-head').innerHTML = cols.map(c => `<th>${COL_LABELS[c] || c}</th>`).join('');
 
   // Body
-  const unitCols = new Set(['REGULAR_UNITS','PROMO_UNITS','MRKDWN_UNITS','TOTAL_UNITS','BASE_HISTORY','WEEKS_WITH_SALES']);
-  const badgeMap = { REGULAR_UNITS:'reg', PROMO_UNITS:'pro', MRKDWN_UNITS:'mkd', TOTAL_UNITS:'tot' };
+  const unitCols = new Set(['REGULAR_UNITS', 'PROMO_UNITS', 'MRKDWN_UNITS', 'TOTAL_UNITS', 'BASE_HISTORY', 'WEEKS_WITH_SALES']);
+  const badgeMap = { REGULAR_UNITS: 'reg', PROMO_UNITS: 'pro', MRKDWN_UNITS: 'mkd', TOTAL_UNITS: 'tot' };
 
   $('sh-table-body').innerHTML = shState.data.map(row => `<tr>${cols.map(c => {
     const v = row[c];
@@ -824,17 +824,17 @@ function renderShPagination() {
   $('sh-btn-next').disabled = shState.page >= tp;
 }
 
-$('sh-btn-prev').addEventListener('click', () => { if(shState.page>1){shState.page--;fetchSh();} });
-$('sh-btn-next').addEventListener('click', () => { const tp=Math.ceil(shState.total/shState.pageSize);if(shState.page<tp){shState.page++;fetchSh();} });
+$('sh-btn-prev').addEventListener('click', () => { if (shState.page > 1) { shState.page--; fetchSh(); } });
+$('sh-btn-next').addEventListener('click', () => { const tp = Math.ceil(shState.total / shState.pageSize); if (shState.page < tp) { shState.page++; fetchSh(); } });
 
 $('sh-btn-export').addEventListener('click', () => {
   if (!shState.data.length) return;
-  const baseAlwaysCols = ['COUNTRY','REGULAR_UNITS','PROMO_UNITS','MRKDWN_UNITS','TOTAL_UNITS','BASE_HISTORY','WEEKS_WITH_SALES'];
-  const locCols = shState.locLevel === 'store' ? ['STORE','STORE_NAME'] : [];
-  const cols = [...(SH_LEVEL_COLS[shState.level]||SH_LEVEL_COLS.class), ...locCols, ...baseAlwaysCols];
-  const rows = shState.data.map(r => cols.map(c => `"${String(r[c]??'').replace(/"/g,'""')}"`).join(','));
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([[cols.join(','),...rows].join('\r\n')],{type:'text/csv'}));
-  a.download = `sales_history_${shState.level}_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  const baseAlwaysCols = ['COUNTRY', 'REGULAR_UNITS', 'PROMO_UNITS', 'MRKDWN_UNITS', 'TOTAL_UNITS', 'BASE_HISTORY', 'WEEKS_WITH_SALES'];
+  const locCols = shState.locLevel === 'store' ? ['STORE', 'STORE_NAME'] : [];
+  const cols = [...(SH_LEVEL_COLS[shState.level] || SH_LEVEL_COLS.class), ...locCols, ...baseAlwaysCols];
+  const rows = shState.data.map(r => cols.map(c => `"${String(r[c] ?? '').replace(/"/g, '""')}"`).join(','));
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([[cols.join(','), ...rows].join('\r\n')], { type: 'text/csv' }));
+  a.download = `sales_history_${shState.level}_${new Date().toISOString().slice(0, 10)}.csv`; a.click();
   showToast('success', 'Exported', `${shState.data.length} rows downloaded`);
 });
 
@@ -856,7 +856,7 @@ if ($('admin-dept-select')) {
     const classSel = $('admin-class-select');
     classSel.innerHTML = '<option value="">All Classes</option>';
     classSel.disabled = !dept;
-    
+
     if (dept) {
       const classes = allFilters.classes.filter(c => c.DEPT == dept);
       classes.forEach(c => classSel.appendChild(new Option(c.CLASS_NAME ? `${c.CLASS} — ${c.CLASS_NAME}` : `${c.CLASS}`, c.CLASS)));
@@ -873,7 +873,7 @@ if ($('admin-class-select')) {
     const subclassSel = $('admin-subclass-select');
     subclassSel.innerHTML = '<option value="">All Subclasses</option>';
     subclassSel.disabled = !cls;
-    
+
     if (dept && cls) {
       const subs = allFilters.subclasses.filter(s => s.DEPT == dept && s.CLASS == cls);
       subs.forEach(s => subclassSel.appendChild(new Option(s.SUB_NAME ? `${s.SUBCLASS} — ${s.SUB_NAME}` : `${s.SUBCLASS}`, s.SUBCLASS)));
@@ -946,7 +946,7 @@ function renderGradedScopesTable() {
   tbody.innerHTML = adminState.data.map((row, idx) => {
     const scopeKey = JSON.stringify({ brand: row.brand, dept: row.dept, class: row.class, subclass: row.subclass });
     const isChecked = adminState.selected.has(scopeKey);
-    
+
     return `
       <tr>
         <td><input type="checkbox" class="admin-row-check" data-scope='${scopeKey}' ${isChecked ? 'checked' : ''}></td>
@@ -995,32 +995,46 @@ $('admin-select-all').addEventListener('change', (e) => {
   updateAdminBulkUI();
 });
 
-$('admin-btn-bulk-delete').addEventListener('click', async (e) => {
+$('admin-btn-bulk-delete').addEventListener('click', (e) => {
   e.preventDefault();
   const count = adminState.selected.size;
   if (!count) return;
 
-  const confirmed = confirm(`⚠ DANGER: This will permanently delete grades for ${count} selected scope(s).\n\nAre you absolutely sure?`);
-  if (!confirmed) return;
-
-  const scopes = Array.from(adminState.selected).map(s => JSON.parse(s));
-
-  try {
-    const res = await apiFetch('/api/admin/bulk-delete-grades', {
-      method: 'POST',
-      body: JSON.stringify(scopes)
-    });
-
-    if (res.success) {
-      showToast('success', 'Bulk Deletion Complete', `Successfully removed grades for ${res.deleted_count} scope(s).`);
-      fetchGradedScopes();
-    } else {
-      showToast('error', 'Deletion Failed', res.error || 'Unknown error');
-    }
-  } catch (e) {
-    showToast('error', 'Admin Error', e.message);
-  }
+  $('admin-delete-count-display').textContent = count;
+  $('admin-delete-modal').classList.remove('hidden');
 });
+
+if ($('admin-delete-cancel')) {
+  $('admin-delete-cancel').addEventListener('click', () => {
+    $('admin-delete-modal').classList.add('hidden');
+  });
+}
+
+if ($('admin-delete-confirm')) {
+  $('admin-delete-confirm').addEventListener('click', async () => {
+    const count = adminState.selected.size;
+    if (!count) return;
+
+    const scopes = Array.from(adminState.selected).map(s => JSON.parse(s));
+    $('admin-delete-modal').classList.add('hidden');
+
+    try {
+      const res = await apiFetch('/api/admin/bulk-delete-grades', {
+        method: 'POST',
+        body: JSON.stringify(scopes)
+      });
+
+      if (res.success) {
+        showToast('success', 'Bulk Deletion Complete', `Successfully removed grades for ${res.deleted_count} scope(s).`);
+        fetchGradedScopes();
+      } else {
+        showToast('error', 'Deletion Failed', res.error || 'Unknown error');
+      }
+    } catch (e) {
+      showToast('error', 'Admin Error', e.message);
+    }
+  });
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // INIT
