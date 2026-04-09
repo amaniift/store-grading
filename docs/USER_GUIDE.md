@@ -18,12 +18,13 @@ The application uses a collapsible sidebar on the left to switch between pages:
 The Admin page provides tools for maintaining the system data.
 
 ### Grade Maintenance:
-Use this tool to permanently remove existing store grades at a specific hierarchy level.
-1.  **Select Scope**: Choose Department and Class.
-2.  **Select Deletion Level**:
-    - **Class Level**: Removes grades where no subclass was specified during generation.
-    - **Subclass Level**: Displays an additional dropdown to select a specific subclass for deletion.
-3.  **Delete**: Click the red "Delete Selected Grades" button and confirm the permanent action.
+Use this tool to discover and remove existing store grades.
+1.  **Filter**: Use Brand, Dept, Class, or Subclass filters to narrow down the segment.
+2.  **View Available Grades**: Click the blue button to load a list of unique segments that already have store grades.
+3.  **Select & Delete**: 
+    - Use the checkboxes to select one or more segments.
+    - Use the "Select All" checkbox in the table header for bulk actions.
+    - Click the red **Delete Selected** button and confirm.
 
 ---
 

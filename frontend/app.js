@@ -195,7 +195,13 @@ async function loadPmBrands() {
     const data = await apiFetch('/api/product-master?page=1&page_size=1');
     const brandSel = $('pm-brand-select');
     brandSel.innerHTML = '<option value="">All Brands</option>';
-    (data.brands || []).forEach(b => brandSel.appendChild(new Option(b, b)));
+    const adminBrandSel = $('admin-brand-select');
+    if (adminBrandSel) adminBrandSel.innerHTML = '<option value="">All Brands</option>';
+    
+    (data.brands || []).forEach(b => {
+      brandSel.appendChild(new Option(b, b));
+      if (adminBrandSel) adminBrandSel.appendChild(new Option(b, b));
+    });
   } catch {}
 }
 
@@ -835,10 +841,12 @@ $('sh-btn-export').addEventListener('click', () => {
 // ══════════════ PAGE: ADMIN ══════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════
 
-$('admin-level-select').addEventListener('change', (e) => {
-  const isSubclass = e.target.value === 'subclass';
-  $('admin-subclass-group').style.display = isSubclass ? 'flex' : 'none';
-});
+const adminState = {
+  data: [],
+  selected: new Set() // stores JSON strings of scope objects
+};
+
+$('admin-brand-select').addEventListener('change', () => fetchGradedScopes());
 
 $('admin-dept-select').addEventListener('change', (e) => {
   const dept = e.target.value;
@@ -851,6 +859,7 @@ $('admin-dept-select').addEventListener('change', (e) => {
     classes.forEach(c => classSel.appendChild(new Option(c.CLASS_NAME ? `${c.CLASS} — ${c.CLASS_NAME}` : `${c.CLASS}`, c.CLASS)));
   }
   classSel.dispatchEvent(new Event('change'));
+  fetchGradedScopes();
 });
 
 $('admin-class-select').addEventListener('change', (e) => {
@@ -864,36 +873,129 @@ $('admin-class-select').addEventListener('change', (e) => {
     const subs = allFilters.subclasses.filter(s => s.DEPT == dept && s.CLASS == cls);
     subs.forEach(s => subclassSel.appendChild(new Option(s.SUB_NAME ? `${s.SUBCLASS} — ${s.SUB_NAME}` : `${s.SUBCLASS}`, s.SUBCLASS)));
   }
+  fetchGradedScopes();
 });
 
-$('admin-btn-delete').addEventListener('click', async () => {
-  const dept = $('admin-dept-select').value;
-  const cls = $('admin-class-select').value;
-  const level = $('admin-level-select').value;
-  const subclass = $('admin-subclass-select').value;
+$('admin-subclass-select').addEventListener('change', () => fetchGradedScopes());
 
-  if (!dept || !cls) {
-    showToast('warning', 'Validation Error', 'Dept and Class are required for deletion.');
-    return;
-  }
+$('admin-btn-view').addEventListener('click', () => fetchGradedScopes());
+$('admin-btn-reset').addEventListener('click', () => {
+  $('admin-brand-select').value = '';
+  $('admin-dept-select').value = '';
+  $('admin-class-select').value = '';
+  $('admin-class-select').disabled = true;
+  $('admin-subclass-select').value = '';
+  $('admin-subclass-select').disabled = true;
+  fetchGradedScopes();
+});
 
-  if (level === 'subclass' && !subclass) {
-    showToast('warning', 'Validation Error', 'Please select a subclass for subclass-level deletion.');
-    return;
-  }
-
-  const levelStr = level === 'class' ? 'Class Level' : `Subclass ${subclass}`;
-  const confirmed = confirm(`⚠ DANGER: This will permanently delete ALL store grades for ${levelStr} in Dept ${dept}, Class ${cls}.\n\nAre you absolutely sure?`);
-  
-  if (!confirmed) return;
+async function fetchGradedScopes() {
+  const params = new URLSearchParams({
+    brand: $('admin-brand-select').value,
+    dept: $('admin-dept-select').value,
+    class: $('admin-class-select').value,
+    subclass: $('admin-subclass-select').value
+  });
 
   try {
-    const params = new URLSearchParams({ dept, class: cls, level });
-    if (level === 'subclass') params.append('subclass', subclass);
+    const data = await apiFetch(`/api/admin/graded-scopes?${params}`);
+    adminState.data = data;
+    adminState.selected.clear();
+    renderGradedScopesTable();
+  } catch (e) {
+    showToast('error', 'Fetch Failed', e.message);
+  }
+}
 
-    const res = await apiFetch(`/api/admin/store-grades?${params}`, { method: 'DELETE' });
+function renderGradedScopesTable() {
+  const tbody = $('admin-table-body');
+  const table = $('admin-data-table');
+  const empty = $('admin-empty-state');
+  const bulkBtn = $('admin-btn-bulk-delete');
+  const selectAll = $('admin-select-all');
+
+  selectAll.checked = false;
+  bulkBtn.classList.add('hidden');
+
+  if (!adminState.data.length) {
+    table.classList.add('hidden');
+    empty.classList.remove('hidden');
+    return;
+  }
+
+  table.classList.remove('hidden');
+  empty.classList.add('hidden');
+
+  tbody.innerHTML = adminState.data.map((row, idx) => {
+    const scopeKey = JSON.stringify({ brand: row.brand, dept: row.dept, class: row.class, subclass: row.subclass });
+    const isChecked = adminState.selected.has(scopeKey);
+    
+    return `
+      <tr>
+        <td><input type="checkbox" class="admin-row-check" data-scope='${scopeKey}' ${isChecked ? 'checked' : ''}></td>
+        <td class="mono">${row.brand}</td>
+        <td>${row.dept} — ${row.dept_name}</td>
+        <td>${row.class} — ${row.class_name}</td>
+        <td><span class="badge ${row.subclass === null ? 'badge-primary' : 'badge-secondary'}">${row.subclass_name}</span></td>
+        <td class="mono">${row.count}</td>
+      </tr>
+    `;
+  }).join('');
+
+  // Add event listeners to checkboxes
+  tbody.querySelectorAll('.admin-row-check').forEach(ck => {
+    ck.addEventListener('change', () => {
+      const scope = ck.dataset.scope;
+      if (ck.checked) adminState.selected.add(scope);
+      else adminState.selected.delete(scope);
+      updateAdminBulkUI();
+    });
+  });
+}
+
+function updateAdminBulkUI() {
+  const bulkBtn = $('admin-btn-bulk-delete');
+  const countSpan = $('admin-selected-count');
+  const count = adminState.selected.size;
+
+  if (count > 0) {
+    bulkBtn.classList.remove('hidden');
+    countSpan.textContent = count;
+  } else {
+    bulkBtn.classList.add('hidden');
+  }
+}
+
+$('admin-select-all').addEventListener('change', (e) => {
+  const checked = e.target.checked;
+  const checkboxes = $('admin-table-body').querySelectorAll('.admin-row-check');
+  checkboxes.forEach(ck => {
+    ck.checked = checked;
+    const scope = ck.dataset.scope;
+    if (checked) adminState.selected.add(scope);
+    else adminState.selected.delete(scope);
+  });
+  updateAdminBulkUI();
+});
+
+$('admin-btn-bulk-delete').addEventListener('click', async () => {
+  const count = adminState.selected.size;
+  if (!count) return;
+
+  const confirmed = confirm(`⚠ DANGER: This will permanently delete grades for ${count} selected scope(s).\n\nAre you absolutely sure?`);
+  if (!confirmed) return;
+
+  const scopes = Array.from(adminState.selected).map(s => JSON.parse(s));
+
+  try {
+    const res = await apiFetch('/api/admin/bulk-delete-grades', {
+      method: 'POST',
+      body: JSON.stringify(scopes)
+    });
+
     if (res.success) {
-      showToast('success', 'Deletion Complete', `Successfully deleted ${res.deleted_count} grade records.`);
+      showToast('success', 'Bulk Deletion Complete', `Successfully removed grades for ${res.deleted_count} scope(s).`);
+      fetchGradedScopes();
     } else {
       showToast('error', 'Deletion Failed', res.error || 'Unknown error');
     }

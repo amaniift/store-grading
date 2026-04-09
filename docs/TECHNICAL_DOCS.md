@@ -77,7 +77,8 @@ Target table for the grading engine.
 - **`GET /api/product-master`**: Paginated product list with attribute filters.
 - **`GET /api/location-master`**: Paginated store list with country/type filters.
 - **`GET /api/sales-history`**: Hierarchical sales aggregation.
-- **`DELETE /api/admin/store-grades`**: Deletes grades for a specific scope (Dept, Class, Level).
+- **`GET /api/admin/graded-scopes`**: Discovers unique Brand/Dept/Class/Subclass segments with existing grades.
+- **`POST /api/admin/bulk-delete-grades`**: Bulk removes grades for a list of scopes in a single transaction.
 
 ---
 

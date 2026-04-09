@@ -151,37 +151,102 @@ def get_subclasses():
 
 # ── Admin Page ──────────────────────────────────────────────────────────────
 
-@app.route("/api/admin/store-grades", methods=["DELETE"])
-def delete_store_grades():
+@app.route("/api/admin/graded-scopes")
+def get_graded_scopes():
     """
-    Deletes store grades for a specific scope.
-    Required params: dept, class, level (class|subclass)
-    Optional: subclass (required if level=subclass)
+    Returns unique combinations of Brand/Dept/Class/Subclass that have grades.
     """
+    brand    = request.args.get("brand")
     dept     = request.args.get("dept",     type=int)
     class_   = request.args.get("class",    type=int)
-    level    = request.args.get("level",    type=str, default="class")
-    subclass = request.args.get("subclass", type=int, default=None)
-
-    if dept is None or class_ is None:
-        return jsonify({"error": "dept and class are required"}), 400
+    subclass = request.args.get("subclass", type=int)
 
     try:
         conn = get_db()
-        if level == "class":
-            query = "DELETE FROM store_grade WHERE DEPT=? AND CLASS=? AND SUBCLASS IS NULL"
-            params = (dept, class_)
-        else:
-            if subclass is None:
-                return jsonify({"error": "subclass is required for subclass-level deletion"}), 400
-            query = "DELETE FROM store_grade WHERE DEPT=? AND CLASS=? AND SUBCLASS=?"
-            params = (dept, class_, subclass)
+        sql = """
+            SELECT 
+                s.BRAND, s.DEPT, p.DEPT_NAME, s.CLASS, p.CLASS_NAME, 
+                s.SUBCLASS, p.SUB_NAME, COUNT(*) as STORE_COUNT
+            FROM (SELECT DISTINCT BRAND, DEPT, CLASS, SUBCLASS, LOCATION FROM store_grade) s
+            LEFT JOIN product_option_dim p ON s.DEPT=p.DEPT AND s.CLASS=p.CLASS 
+                AND (s.SUBCLASS=p.SUBCLASS OR (s.SUBCLASS IS NULL AND p.SUBCLASS IS NULL))
+            WHERE 1=1
+        """
+        params = []
+        if brand:
+            sql += " AND s.BRAND = ?"
+            params.append(brand)
+        if dept:
+            sql += " AND s.DEPT = ?"
+            params.append(dept)
+        if class_:
+            sql += " AND s.CLASS = ?"
+            params.append(class_)
+        if subclass:
+            sql += " AND s.SUBCLASS = ?"
+            params.append(subclass)
+
+        sql += " GROUP BY s.BRAND, s.DEPT, s.CLASS, s.SUBCLASS ORDER BY s.BRAND, s.DEPT, s.CLASS, s.SUBCLASS"
         
-        cursor = conn.execute(query, params)
-        count = cursor.rowcount
+        rows = conn.execute(sql, params).fetchall()
+        
+        # Format the grouped results
+        result = []
+        for r in rows:
+            result.append({
+                "brand": r["BRAND"],
+                "dept": r["DEPT"],
+                "dept_name": r["DEPT_NAME"] or f"Dept {r['DEPT']}",
+                "class": r["CLASS"],
+                "class_name": r["CLASS_NAME"] or f"Class {r['CLASS']}",
+                "subclass": r["SUBCLASS"],
+                "subclass_name": r["SUB_NAME"] if r["SUBCLASS"] is not None else "CLASS LEVEL",
+                "count": r["STORE_COUNT"]
+            })
+            
+        conn.close()
+        return jsonify(result)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/bulk-delete-grades", methods=["POST"])
+def bulk_delete_grades():
+    """
+    Deletes store grades for multiple provided scopes.
+    Body: [{"brand": "...", "dept": ..., "class": ..., "subclass": ...}, ...]
+    """
+    scopes = request.json
+    if not isinstance(scopes, list):
+        return jsonify({"error": "Expected a list of scopes"}), 400
+
+    try:
+        conn = get_db()
+        total_deleted = 0
+        
+        for scope in scopes:
+            brand = scope.get("brand")
+            dept = scope.get("dept")
+            cls = scope.get("class")
+            sub = scope.get("subclass") # Can be null
+
+            if not brand or dept is None or cls is None:
+                continue
+
+            if sub is None:
+                query = "DELETE FROM store_grade WHERE BRAND=? AND DEPT=? AND CLASS=? AND SUBCLASS IS NULL"
+                params = (brand, dept, cls)
+            else:
+                query = "DELETE FROM store_grade WHERE BRAND=? AND DEPT=? AND CLASS=? AND SUBCLASS=?"
+                params = (brand, dept, cls, sub)
+            
+            cursor = conn.execute(query, params)
+            total_deleted += cursor.rowcount
+            
         conn.commit()
         conn.close()
-        return jsonify({"success": True, "deleted_count": count})
+        return jsonify({"success": True, "deleted_count": total_deleted})
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
