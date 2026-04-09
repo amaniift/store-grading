@@ -10,6 +10,20 @@ The application uses a collapsible sidebar on the left to switch between pages:
 - **Product Master**: product catalog.
 - **Location Master**: store directory.
 - **Sales History**: sales analytics.
+- **Admin**: system maintenance (deleting grades).
+
+---
+
+## 🛠 Admin Dashboard
+The Admin page provides tools for maintaining the system data.
+
+### Grade Maintenance:
+Use this tool to permanently remove existing store grades at a specific hierarchy level.
+1.  **Select Scope**: Choose Department and Class.
+2.  **Select Deletion Level**:
+    - **Class Level**: Removes grades where no subclass was specified during generation.
+    - **Subclass Level**: Displays an additional dropdown to select a specific subclass for deletion.
+3.  **Delete**: Click the red "Delete Selected Grades" button and confirm the permanent action.
 
 ---
 

@@ -73,11 +73,11 @@ Target table for the grading engine.
 - **`POST /api/generate-grades`**: Triggers the K-means engine for a specific hierarchy level.
   - Body: `{ dept, class, level: "class"|"subclass", clusters: N }`.
 
-### 3. Analytics & Masters
+### 3. Analytics, Masters & Admin
 - **`GET /api/product-master`**: Paginated product list with attribute filters.
 - **`GET /api/location-master`**: Paginated store list with country/type filters.
 - **`GET /api/sales-history`**: Hierarchical sales aggregation.
-  - Params: `prod_level` (dept|class|subclass|sku), `loc_level` (country|store).
+- **`DELETE /api/admin/store-grades`**: Deletes grades for a specific scope (Dept, Class, Level).
 
 ---
 

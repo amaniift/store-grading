@@ -149,6 +149,44 @@ def get_subclasses():
         return jsonify({"error": str(e)}), 500
 
 
+# ── Admin Page ──────────────────────────────────────────────────────────────
+
+@app.route("/api/admin/store-grades", methods=["DELETE"])
+def delete_store_grades():
+    """
+    Deletes store grades for a specific scope.
+    Required params: dept, class, level (class|subclass)
+    Optional: subclass (required if level=subclass)
+    """
+    dept     = request.args.get("dept",     type=int)
+    class_   = request.args.get("class",    type=int)
+    level    = request.args.get("level",    type=str, default="class")
+    subclass = request.args.get("subclass", type=int, default=None)
+
+    if dept is None or class_ is None:
+        return jsonify({"error": "dept and class are required"}), 400
+
+    try:
+        conn = get_db()
+        if level == "class":
+            query = "DELETE FROM store_grade WHERE DEPT=? AND CLASS=? AND SUBCLASS IS NULL"
+            params = (dept, class_)
+        else:
+            if subclass is None:
+                return jsonify({"error": "subclass is required for subclass-level deletion"}), 400
+            query = "DELETE FROM store_grade WHERE DEPT=? AND CLASS=? AND SUBCLASS=?"
+            params = (dept, class_, subclass)
+        
+        cursor = conn.execute(query, params)
+        count = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True, "deleted_count": count})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
 # ── Store Grades ─────────────────────────────────────────────────────────────
 
 @app.route("/api/store-grades")

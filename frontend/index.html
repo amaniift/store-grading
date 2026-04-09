@@ -77,6 +77,14 @@
           </span>
           <span class="nav-label">Sales History</span>
         </button>
+        <button class="nav-item" id="nav-admin" data-page="page-admin">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </span>
+          <span class="nav-label">Admin</span>
+        </button>
       </div>
 
       <div class="sidebar-footer">
@@ -555,6 +563,68 @@
         </div>
       </section>
 
+      <!-- ════════════════════════════════════════════
+           PAGE: ADMIN
+      ══════════════════════════════════════════════ -->
+      <section class="page hidden" id="page-admin" aria-label="Admin Page">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Admin Dashboard</h1>
+            <p class="page-desc">Maintenance tasks and system configuration.</p>
+          </div>
+        </div>
+
+        <div class="filter-panel">
+          <div class="filter-panel-header">
+            <div class="filter-panel-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <span>Grade Maintenance</span>
+            </div>
+          </div>
+
+          <div class="filter-grid">
+            <div class="filter-group">
+              <label for="admin-dept-select" class="filter-label">Department</label>
+              <div class="select-wrapper">
+                <select id="admin-dept-select" class="filter-select"><option value="">All Departments</option></select>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="admin-class-select" class="filter-label">Class</label>
+              <div class="select-wrapper">
+                <select id="admin-class-select" class="filter-select" disabled><option value="">All Classes</option></select>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="admin-level-select" class="filter-label">Deletion Level</label>
+              <div class="select-wrapper">
+                <select id="admin-level-select" class="filter-select">
+                  <option value="class">Class Level (Subclass IS NULL)</option>
+                  <option value="subclass">Subclass Level</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-group" id="admin-subclass-group" style="display:none;">
+              <label for="admin-subclass-select" class="filter-label">Subclass</label>
+              <div class="select-wrapper">
+                <select id="admin-subclass-select" class="filter-select" disabled><option value="">All Subclasses</option></select>
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-actions">
+            <button class="btn btn-danger" id="admin-btn-delete">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+              Delete Selected Grades
+            </button>
+          </div>
+          
+          <div class="admin-notice" style="margin-top:15px; font-size: 0.75rem; color: var(--text-muted); display:flex; gap:8px; align-items:center;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span>Caution: Deletion is permanent and affects existing grade calculations.</span>
+          </div>
+        </div>
+      </section>
     </div><!-- /page-area -->
   </div><!-- /app-shell -->
 

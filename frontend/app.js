@@ -175,9 +175,16 @@ function populateSharedFilters() {
   shCountrySel.innerHTML = '<option value="">All Countries</option>';
   allFilters.countries.forEach(c => shCountrySel.appendChild(new Option(c.AREA_NAME, c.AREA_NAME)));
 
-  const shStoreSel = $('sh-store-select');
-  shStoreSel.innerHTML = '<option value="">All Stores</option>';
   allFilters.stores.forEach(s => shStoreSel.appendChild(new Option(s.STORE_NAME || s.STORE, s.STORE)));
+  
+  // ── Admin selects ──────────────────────────────────────────────
+  const adminDeptSel = $('admin-dept-select');
+  if (adminDeptSel) {
+    adminDeptSel.innerHTML = '<option value="">Select Department...</option>';
+    allFilters.depts.forEach(d => {
+      adminDeptSel.appendChild(new Option(d.DEPT_NAME ? `${d.DEPT} — ${d.DEPT_NAME}` : `${d.DEPT}`, d.DEPT));
+    });
+  }
 
   // Load brands for Product Master
   loadPmBrands();
@@ -822,6 +829,77 @@ $('sh-btn-export').addEventListener('click', () => {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([[cols.join(','),...rows].join('\r\n')],{type:'text/csv'}));
   a.download = `sales_history_${shState.level}_${new Date().toISOString().slice(0,10)}.csv`; a.click();
   showToast('success', 'Exported', `${shState.data.length} rows downloaded`);
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// ══════════════ PAGE: ADMIN ══════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+
+$('admin-level-select').addEventListener('change', (e) => {
+  const isSubclass = e.target.value === 'subclass';
+  $('admin-subclass-group').style.display = isSubclass ? 'flex' : 'none';
+});
+
+$('admin-dept-select').addEventListener('change', (e) => {
+  const dept = e.target.value;
+  const classSel = $('admin-class-select');
+  classSel.innerHTML = '<option value="">All Classes</option>';
+  classSel.disabled = !dept;
+  
+  if (dept) {
+    const classes = allFilters.classes.filter(c => c.DEPT == dept);
+    classes.forEach(c => classSel.appendChild(new Option(c.CLASS_NAME ? `${c.CLASS} — ${c.CLASS_NAME}` : `${c.CLASS}`, c.CLASS)));
+  }
+  classSel.dispatchEvent(new Event('change'));
+});
+
+$('admin-class-select').addEventListener('change', (e) => {
+  const dept = $('admin-dept-select').value;
+  const cls = e.target.value;
+  const subclassSel = $('admin-subclass-select');
+  subclassSel.innerHTML = '<option value="">All Subclasses</option>';
+  subclassSel.disabled = !cls;
+  
+  if (dept && cls) {
+    const subs = allFilters.subclasses.filter(s => s.DEPT == dept && s.CLASS == cls);
+    subs.forEach(s => subclassSel.appendChild(new Option(s.SUB_NAME ? `${s.SUBCLASS} — ${s.SUB_NAME}` : `${s.SUBCLASS}`, s.SUBCLASS)));
+  }
+});
+
+$('admin-btn-delete').addEventListener('click', async () => {
+  const dept = $('admin-dept-select').value;
+  const cls = $('admin-class-select').value;
+  const level = $('admin-level-select').value;
+  const subclass = $('admin-subclass-select').value;
+
+  if (!dept || !cls) {
+    showToast('warning', 'Validation Error', 'Dept and Class are required for deletion.');
+    return;
+  }
+
+  if (level === 'subclass' && !subclass) {
+    showToast('warning', 'Validation Error', 'Please select a subclass for subclass-level deletion.');
+    return;
+  }
+
+  const levelStr = level === 'class' ? 'Class Level' : `Subclass ${subclass}`;
+  const confirmed = confirm(`⚠ DANGER: This will permanently delete ALL store grades for ${levelStr} in Dept ${dept}, Class ${cls}.\n\nAre you absolutely sure?`);
+  
+  if (!confirmed) return;
+
+  try {
+    const params = new URLSearchParams({ dept, class: cls, level });
+    if (level === 'subclass') params.append('subclass', subclass);
+
+    const res = await apiFetch(`/api/admin/store-grades?${params}`, { method: 'DELETE' });
+    if (res.success) {
+      showToast('success', 'Deletion Complete', `Successfully deleted ${res.deleted_count} grade records.`);
+    } else {
+      showToast('error', 'Deletion Failed', res.error || 'Unknown error');
+    }
+  } catch (e) {
+    showToast('error', 'Admin Error', e.message);
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════════
