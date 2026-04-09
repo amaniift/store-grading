@@ -243,8 +243,28 @@ def run_grading(
                     "message": "No subclass data found for given filters"}
 
     # ── Aggregate + cluster ──────────────────────────────────────────────────
-    agg = build_features(df, level, group_keys)
-    graded = assign_grades(agg, n_clusters=n_clusters)
+    if level == "subclass" and subclass is None:
+        # ── "All Subclasses" mode: run K-means independently per subclass ──
+        # Each subclass competes only within itself, ensuring grades are
+        # always spread relative to stores in that subclass, never across
+        # the combined pool of all subclasses.
+        all_subclasses = df["SUBCLASS"].dropna().unique()
+        graded_parts = []
+        for sc in all_subclasses:
+            sc_df = df[df["SUBCLASS"] == sc]
+            agg = build_features(sc_df, level, group_keys)
+            graded_sc = assign_grades(agg, n_clusters=n_clusters)
+            graded_parts.append(graded_sc)
+        graded = pd.concat(graded_parts, ignore_index=True) if graded_parts else pd.DataFrame()
+    else:
+        # Single subclass (or class-level): grade as one batch
+        agg = build_features(df, level, group_keys)
+        graded = assign_grades(agg, n_clusters=n_clusters)
+
+    if graded.empty:
+        conn.close()
+        return {"status": "no_data", "inserts": 0, "updates": 0,
+                "message": "No data to grade after filtering."}
 
     # ── Build upsert rows ────────────────────────────────────────────────────
     rows = []

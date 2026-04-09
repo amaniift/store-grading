@@ -1,91 +1,30 @@
 /**
- * app.js — Store Grading Tool Frontend Logic
+ * app.js — Retail Analytics Suite
  *
- * Handles:
- *  - API communication with Flask backend
- *  - Cascading filter population
- *  - Store grade search & pagination
- *  - Grade generation trigger with progress feedback
- *  - Table sorting & CSV export
+ * Pages:
+ *  - Store Grading (K-means)
+ *  - Product Master (browse product_option_dim)
+ *  - Sales History  (aggregated sales by hierarchy level + type)
  */
 
 'use strict';
 
-// ═══════════════════════════════════════════════════════════════════
-// CONFIG
-// ═══════════════════════════════════════════════════════════════════
-
-const API_BASE = '';  // Same origin — served by Flask
+const API_BASE = '';
 
 // ═══════════════════════════════════════════════════════════════════
-// STATE
-// ═══════════════════════════════════════════════════════════════════
-
-const state = {
-  gradingLevel: 'class',      // 'class' | 'subclass'
-  filters: {
-    dept:     null,
-    class:    null,
-    subclass: null,
-    country:  null,
-    store:    null,
-  },
-  page:       1,
-  pageSize:   50,
-  totalRows:  0,
-  tableData:  [],
-  sortCol:    null,
-  sortDir:    'asc',
-  gradeCounts: {},
-  selectedClusters: 3,
-  isGenerating: false,
-};
-
-// ═══════════════════════════════════════════════════════════════════
-// DOM REFS
+// HELPERS
 // ═══════════════════════════════════════════════════════════════════
 
 const $ = id => document.getElementById(id);
 
-const els = {
-  statusDot:       $('status-dot'),
-  statusText:      $('status-text'),
-  levelClass:      $('level-class'),
-  levelSubclass:   $('level-subclass'),
-  deptSelect:      $('dept-select'),
-  classSelect:     $('class-select'),
-  subclassSelect:  $('subclass-select'),
-  countrySelect:   $('country-select'),
-  storeSelect:     $('store-select'),
-  btnSearch:       $('btn-search'),
-  btnGenerate:     $('btn-generate'),
-  btnReset:        $('btn-reset'),
-  progressBanner:  $('progress-banner'),
-  progressBar:     $('progress-bar'),
-  progressTitle:   $('progress-title'),
-  progressSub:     $('progress-sub'),
-  emptyState:      $('empty-state'),
-  dataTable:       $('data-table'),
-  tableBody:       $('table-body'),
-  gridCountLabel:  $('grid-count-label'),
-  btnExport:       $('btn-export'),
-  btnPrev:         $('btn-prev'),
-  btnNext:         $('btn-next'),
-  pageInfo:        $('page-info'),
-  confirmModal:    $('confirm-modal'),
-  modalScope:      $('modal-scope'),
-  modalCancel:     $('modal-cancel'),
-  modalConfirm:    $('modal-confirm'),
-  toastContainer:  $('toast-container'),
-  statGrade1:      $('stat-grade1'),
-  statGrade2:      $('stat-grade2'),
-  statGrade3:      $('stat-grade3'),
-  statTotal:       $('stat-total'),
-};
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
-// ═══════════════════════════════════════════════════════════════════
-// API LAYER
-// ═══════════════════════════════════════════════════════════════════
+function fmt(n) {
+  if (n == null) return '—';
+  return Number(n).toLocaleString();
+}
 
 async function apiFetch(path, options = {}) {
   const res = await fetch(API_BASE + path, {
@@ -98,526 +37,7 @@ async function apiFetch(path, options = {}) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// STATUS / HEALTH
-// ═══════════════════════════════════════════════════════════════════
-
-async function checkHealth() {
-  try {
-    await apiFetch('/api/health');
-    els.statusDot.className = 'status-dot online';
-    els.statusText.textContent = 'API Connected';
-  } catch {
-    els.statusDot.className = 'status-dot error';
-    els.statusText.textContent = 'API Offline';
-    showToast('error', 'Connection Failed', 'Cannot reach the backend API. Make sure Flask is running.');
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// FILTER INITIALISATION
-// ═══════════════════════════════════════════════════════════════════
-
-let allFilters = { depts: [], classes: [], subclasses: [], stores: [], countries: [] };
-
-async function loadFilters() {
-  try {
-    allFilters = await apiFetch('/api/filters');
-    populateDepts();
-    populateCountries();
-    populateStores();
-  } catch (e) {
-    showToast('error', 'Filter Load Failed', e.message);
-  }
-}
-
-function populateDepts() {
-  const sel = els.deptSelect;
-  sel.innerHTML = '<option value="">Select Department...</option>';
-  allFilters.depts.forEach(d => {
-    const label = d.DEPT_NAME ? `${d.DEPT} — ${d.DEPT_NAME}` : `${d.DEPT}`;
-    sel.appendChild(new Option(label, d.DEPT));
-  });
-}
-
-function populateClasses(dept) {
-  const sel = els.classSelect;
-  sel.innerHTML = '<option value="">Select Class...</option>';
-  sel.disabled = true;
-  const filtered = allFilters.classes.filter(c => c.DEPT == dept);
-  filtered.forEach(c => {
-    const label = c.CLASS_NAME ? `${c.CLASS} — ${c.CLASS_NAME}` : `${c.CLASS}`;
-    sel.appendChild(new Option(label, c.CLASS));
-  });
-  sel.disabled = filtered.length === 0;
-}
-
-function populateSubclasses(dept, cls) {
-  const sel = els.subclassSelect;
-  sel.innerHTML = '<option value="">All Subclasses</option>';
-  sel.disabled = true;
-  const filtered = allFilters.subclasses.filter(s => s.DEPT == dept && s.CLASS == cls);
-  filtered.forEach(s => {
-    const label = s.SUB_NAME ? `${s.SUBCLASS} — ${s.SUB_NAME}` : `${s.SUBCLASS}`;
-    sel.appendChild(new Option(label, s.SUBCLASS));
-  });
-  sel.disabled = (filtered.length === 0) || (state.gradingLevel === 'class');
-}
-
-function populateCountries() {
-  const sel = els.countrySelect;
-  sel.innerHTML = '<option value="">All Countries</option>';
-  allFilters.countries.forEach(c => {
-    sel.appendChild(new Option(c.AREA_NAME, c.AREA_NAME));
-  });
-}
-
-function populateStores() {
-  const sel = els.storeSelect;
-  sel.innerHTML = '<option value="">All Stores</option>';
-  allFilters.stores.forEach(s => {
-    const label = s.STORE_NAME || `${s.STORE}`;
-    sel.appendChild(new Option(label, s.STORE));
-  });
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// FILTER EVENT LISTENERS
-// ═══════════════════════════════════════════════════════════════════
-
-els.deptSelect.addEventListener('change', () => {
-  state.filters.dept = els.deptSelect.value || null;
-  state.filters.class = null;
-  state.filters.subclass = null;
-  populateClasses(state.filters.dept || '');
-  els.subclassSelect.innerHTML = '<option value="">All Subclasses</option>';
-  els.subclassSelect.disabled = true;
-  updateSearchButtonState();
-});
-
-els.classSelect.addEventListener('change', () => {
-  state.filters.class = els.classSelect.value || null;
-  state.filters.subclass = null;
-  populateSubclasses(state.filters.dept || '', state.filters.class || '');
-  updateSearchButtonState();
-});
-
-els.subclassSelect.addEventListener('change', () => {
-  state.filters.subclass = els.subclassSelect.value || null;
-});
-
-els.countrySelect.addEventListener('change', () => {
-  state.filters.country = els.countrySelect.value || null;
-});
-
-els.storeSelect.addEventListener('change', () => {
-  state.filters.store = els.storeSelect.value || null;
-});
-
-function updateSearchButtonState() {
-  const valid = !!state.filters.dept && !!state.filters.class;
-  els.btnSearch.disabled  = !valid;
-  els.btnGenerate.disabled = !valid;
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// LEVEL TOGGLE
-// ═══════════════════════════════════════════════════════════════════
-
-[els.levelClass, els.levelSubclass].forEach(btn => {
-  btn.addEventListener('click', () => {
-    state.gradingLevel = btn.dataset.level;
-    els.levelClass.classList.toggle('active',    state.gradingLevel === 'class');
-    els.levelSubclass.classList.toggle('active', state.gradingLevel === 'subclass');
-    els.levelClass.setAttribute('aria-pressed',    String(state.gradingLevel === 'class'));
-    els.levelSubclass.setAttribute('aria-pressed', String(state.gradingLevel === 'subclass'));
-
-    // Link toggle to Subclass filter availability
-    if (state.gradingLevel === 'class') {
-      els.subclassSelect.value = '';
-      state.filters.subclass = null;
-      els.subclassSelect.disabled = true;
-    } else {
-      // Only enable if Class is selected
-      els.subclassSelect.disabled = !state.filters.class;
-    }
-
-    // Auto-refresh search result when toggle changes
-    if (state.filters.dept && state.filters.class) {
-      state.page = 1;
-      fetchGrades();
-    }
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════
-// SEARCH
-// ═══════════════════════════════════════════════════════════════════
-
-els.btnSearch.addEventListener('click', () => {
-  state.page = 1;
-  fetchGrades();
-});
-
-async function fetchGrades() {
-  if (!state.filters.dept || !state.filters.class) return;
-
-  const params = new URLSearchParams({
-    dept:      state.filters.dept,
-    class:     state.filters.class,
-    level:     state.gradingLevel,
-    page:      state.page,
-    page_size: state.pageSize,
-  });
-  if (state.filters.subclass) params.set('subclass', state.filters.subclass);
-  if (state.filters.country)  params.set('country',  state.filters.country);
-  if (state.filters.store)    params.set('store',    state.filters.store);
-
-  setTableLoading(true);
-  try {
-    const data = await apiFetch(`/api/store-grades?${params}`);
-    state.totalRows = data.total;
-    state.gradeCounts = data.grade_counts || {};
-    state.tableData = data.data;
-    renderTable();
-    renderPagination();
-    renderStats();
-    els.btnExport.disabled = data.data.length === 0;
-  } catch (e) {
-    showToast('error', 'Search Failed', e.message);
-  } finally {
-    setTableLoading(false);
-  }
-}
-
-function setTableLoading(loading) {
-  if (loading) {
-    els.gridCountLabel.textContent = 'Loading...';
-    els.btnSearch.disabled = true;
-  } else {
-    els.btnSearch.disabled = !(state.filters.dept && state.filters.class);
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// TABLE RENDER
-// ═══════════════════════════════════════════════════════════════════
-
-function renderTable() {
-  const data = getSortedData();
-
-  if (data.length === 0) {
-    els.emptyState.classList.remove('hidden');
-    els.dataTable.classList.add('hidden');
-    els.gridCountLabel.textContent  = 'No results found';
-    return;
-  }
-
-  els.emptyState.classList.add('hidden');
-  els.dataTable.classList.remove('hidden');
-
-  const total   = state.totalRows;
-  const start   = (state.page - 1) * state.pageSize + 1;
-  const end     = Math.min(start + data.length - 1, total);
-  els.gridCountLabel.textContent = `Showing ${start}–${end} of ${total} store grades`;
-
-  els.tableBody.innerHTML = data.map(row => `
-    <tr>
-      <td class="mono">${row.STORE_GRADE_ID ?? '—'}</td>
-      <td><strong>${esc(row.BRAND || '—')}</strong></td>
-      <td class="mono">${row.LOCATION ?? '—'}</td>
-      <td>${esc(row.STORE_NAME || '')}<span class="text-dim">${!row.STORE_NAME ? '—' : ''}</span></td>
-      <td>${esc(row.COUNTRY || '—')}</td>
-      <td class="mono">${row.DEPT ?? '—'}${row.DEPT_NAME ? `<br><span style="font-size:0.7rem;color:var(--text-muted)">${esc(row.DEPT_NAME)}</span>` : ''}</td>
-      <td class="mono">${row.CLASS ?? '—'}${row.CLASS_NAME ? `<br><span style="font-size:0.7rem;color:var(--text-muted)">${esc(row.CLASS_NAME)}</span>` : ''}</td>
-      <td class="mono">${row.SUBCLASS != null ? row.SUBCLASS : '<span class="text-dim">—</span>'}${row.SUB_NAME ? `<br><span style="font-size:0.7rem;color:var(--text-muted)">${esc(row.SUB_NAME)}</span>` : ''}</td>
-      <td>${gradeBadge(row.GRADE)}</td>
-      <td class="mono" style="font-size:0.72rem">${esc(row.CREATE_DATETIME ? row.CREATE_DATETIME.split(' ')[0] : '—')}</td>
-      <td class="mono" style="font-size:0.72rem">${esc(row.LAST_UPDATE_DATETIME ? row.LAST_UPDATE_DATETIME.split(' ')[0] : '—')}</td>
-    </tr>
-  `).join('');
-}
-
-function esc(str) {
-  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function gradeBadge(grade) {
-  if (!grade && grade !== 0) return `<span class="grade-badge gx">—</span>`;
-  const g = String(grade);
-  const cls = g === '1' ? 'g1' : g === '2' ? 'g2' : g === '3' ? 'g3' : 'gx';
-  return `<span class="grade-badge ${cls}">${esc(g)}</span>`;
-}
-
-// ─── Sorting ─────────────────────────────────────────────────────
-
-function getSortedData() {
-  if (!state.sortCol) return state.tableData;
-  return [...state.tableData].sort((a, b) => {
-    let av = a[state.sortCol], bv = b[state.sortCol];
-    if (av == null) av = '';
-    if (bv == null) bv = '';
-    const cmp = typeof av === 'number' && typeof bv === 'number'
-      ? av - bv
-      : String(av).localeCompare(String(bv));
-    return state.sortDir === 'asc' ? cmp : -cmp;
-  });
-}
-
-document.querySelectorAll('.data-table th.sortable').forEach(th => {
-  th.addEventListener('click', () => {
-    const col = th.dataset.sort;
-    if (state.sortCol === col) {
-      state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
-    } else {
-      state.sortCol = col;
-      state.sortDir = 'asc';
-    }
-    document.querySelectorAll('.data-table th').forEach(h => {
-      h.classList.remove('sort-asc', 'sort-desc');
-      h.removeAttribute('aria-sort');
-    });
-    th.classList.add(state.sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
-    th.setAttribute('aria-sort', state.sortDir === 'asc' ? 'ascending' : 'descending');
-    renderTable();
-  });
-});
-
-// ─── Stats ───────────────────────────────────────────────────────
-
-function renderStats() {
-  const counts = state.gradeCounts || {};
-  els.statGrade1.textContent = counts['1'] || 0;
-  els.statGrade2.textContent = counts['2'] || 0;
-  els.statGrade3.textContent = counts['3'] || 0;
-  els.statTotal.textContent  = state.totalRows;
-}
-
-// ─── Pagination ───────────────────────────────────────────────────
-
-function renderPagination() {
-  const totalPages = Math.max(1, Math.ceil(state.totalRows / state.pageSize));
-  els.pageInfo.textContent = `Page ${state.page} of ${totalPages}`;
-  els.btnPrev.disabled = state.page <= 1;
-  els.btnNext.disabled = state.page >= totalPages;
-}
-
-els.btnPrev.addEventListener('click', () => {
-  if (state.page > 1) { state.page--; fetchGrades(); }
-});
-
-els.btnNext.addEventListener('click', () => {
-  const totalPages = Math.ceil(state.totalRows / state.pageSize);
-  if (state.page < totalPages) { state.page++; fetchGrades(); }
-});
-
-// ═══════════════════════════════════════════════════════════════════
-// RESET
-// ═══════════════════════════════════════════════════════════════════
-
-els.btnReset.addEventListener('click', () => {
-  els.deptSelect.value     = '';
-  els.classSelect.value    = '';
-  els.subclassSelect.value = '';
-  els.countrySelect.value  = '';
-  els.storeSelect.value    = '';
-  els.classSelect.disabled    = true;
-  els.subclassSelect.disabled = true;
-  Object.assign(state.filters, { dept: null, class: null, subclass: null, country: null, store: null });
-  state.tableData = [];
-  state.totalRows = 0;
-  state.gradeCounts = {};
-  state.page      = 1;
-  state.sortCol   = null;
-  els.btnSearch.disabled   = true;
-  els.btnGenerate.disabled = true;
-  els.btnExport.disabled   = true;
-  els.emptyState.classList.remove('hidden');
-  els.dataTable.classList.add('hidden');
-  els.gridCountLabel.textContent = 'Select filters and search to load data';
-  els.statGrade1.textContent = '—';
-  els.statGrade2.textContent = '—';
-  els.statGrade3.textContent = '—';
-  els.statTotal.textContent  = '—';
-  renderPagination();
-});
-
-// ═══════════════════════════════════════════════════════════════════
-// GENERATE GRADES MODAL
-// ═══════════════════════════════════════════════════════════════════
-
-els.btnGenerate.addEventListener('click', () => openGenerateModal());
-
-function openGenerateModal() {
-  // Build scope display
-  const dept    = els.deptSelect    .options[els.deptSelect.selectedIndex]?.text    || state.filters.dept;
-  const cls     = els.classSelect   .options[els.classSelect.selectedIndex]?.text   || state.filters.class;
-  const sub     = els.subclassSelect.value
-    ? (els.subclassSelect.options[els.subclassSelect.selectedIndex]?.text || state.filters.subclass)
-    : null;
-  const country = state.filters.country || 'All Countries';
-  const store   = state.filters.store
-    ? (els.storeSelect.options[els.storeSelect.selectedIndex]?.text || state.filters.store)
-    : 'All Stores';
-
-  const levelLabel = state.gradingLevel === 'class' ? 'Class Level' : 'Subclass Level';
-  const levelDesc  = state.gradingLevel === 'class'
-    ? 'This will generate <strong>one grade per store</strong> by aggregating all sales for the entire Class.'
-    : sub
-      ? `This will generate a grade for <strong>Subclass: ${esc(sub)}</strong> only.`
-      : 'This will generate <strong>multiple grades per store</strong> (one for each Subclass found in sales data).';
-
-  els.modalScope.innerHTML = `
-    <div class="scope-row"><span class="scope-key">Granularity</span> <span class="scope-value" style="color:var(--primary-light)">${esc(levelLabel)}</span></div>
-    <div class="scope-row" style="margin-bottom:12px; font-size:0.8rem; opacity:0.8">${levelDesc}</div>
-    <div class="scope-row"><span class="scope-key">Dept</span>   <span class="scope-value">${esc(dept)}</span></div>
-    <div class="scope-row"><span class="scope-key">Class</span>  <span class="scope-value">${esc(cls)}</span></div>
-    ${sub ? `<div class="scope-row"><span class="scope-key">Subclass</span><span class="scope-value">${esc(sub)}</span></div>` : ''}
-    <div class="scope-row"><span class="scope-key">Country</span><span class="scope-value">${esc(country)}</span></div>
-    <div class="scope-row"><span class="scope-key">Store</span>  <span class="scope-value">${esc(store)}</span></div>
-  `;
-
-  els.confirmModal.classList.remove('hidden');
-}
-
-// Cluster selector in modal
-document.querySelectorAll('.cluster-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.cluster-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    state.selectedClusters = parseInt(btn.dataset.clusters, 10);
-  });
-});
-
-els.modalCancel.addEventListener('click', () => els.confirmModal.classList.add('hidden'));
-
-els.confirmModal.addEventListener('click', e => {
-  if (e.target === els.confirmModal) els.confirmModal.classList.add('hidden');
-});
-
-els.modalConfirm.addEventListener('click', async () => {
-  els.confirmModal.classList.add('hidden');
-  await runGrading();
-});
-
-// Keyboard close
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') els.confirmModal.classList.add('hidden');
-});
-
-// ═══════════════════════════════════════════════════════════════════
-// RUN GRADING
-// ═══════════════════════════════════════════════════════════════════
-
-async function runGrading() {
-  if (state.isGenerating) return;
-  state.isGenerating = true;
-
-  showProgress(true, 'Running K-means Clustering...', 'Preparing data and running grading algorithm');
-  animateProgressBar(0, 30, 1000);
-
-  try {
-    const payload = {
-      dept:     parseInt(state.filters.dept, 10),
-      class:    parseInt(state.filters.class, 10),
-      level:    state.gradingLevel,
-      clusters: state.selectedClusters,
-    };
-    if (state.filters.subclass) payload.subclass = parseInt(state.filters.subclass, 10);
-    if (state.filters.country)  payload.country  = state.filters.country;
-    if (state.filters.store)    payload.store     = parseInt(state.filters.store, 10);
-
-    animateProgressBar(30, 80, 4000);
-    updateProgress('Computing store grades...', 'K-means clustering in progress');
-
-    const result = await apiFetch('/api/generate-grades', {
-      method:  'POST',
-      body:    JSON.stringify(payload),
-    });
-
-    animateProgressBar(80, 100, 500);
-    await sleep(600);
-
-    showProgress(false);
-    showToast(
-      'success',
-      'Grading Complete!',
-      `${result.inserts} new grades inserted, ${result.updates} updated. ${result.rows_processed} stores processed.`
-    );
-
-    // Auto-refresh the grid
-    await fetchGrades();
-
-  } catch (e) {
-    showProgress(false);
-    showToast('error', 'Grading Failed', e.message);
-  } finally {
-    state.isGenerating = false;
-  }
-}
-
-function showProgress(show, title = '', sub = '') {
-  if (show) {
-    els.progressTitle.textContent = title;
-    els.progressSub.textContent   = sub;
-    els.progressBanner.classList.remove('hidden');
-    els.progressBar.style.width = '0%';
-    els.btnGenerate.disabled = true;
-  } else {
-    els.progressBanner.classList.add('hidden');
-    updateSearchButtonState();
-  }
-}
-
-function updateProgress(title, sub) {
-  els.progressTitle.textContent = title;
-  els.progressSub.textContent   = sub;
-}
-
-function animateProgressBar(from, to, duration) {
-  const start = Date.now();
-  const step = () => {
-    const pct = Math.min(1, (Date.now() - start) / duration);
-    els.progressBar.style.width = `${from + (to - from) * pct}%`;
-    if (pct < 1) requestAnimationFrame(step);
-  };
-  requestAnimationFrame(step);
-}
-
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-// ═══════════════════════════════════════════════════════════════════
-// EXPORT CSV
-// ═══════════════════════════════════════════════════════════════════
-
-els.btnExport.addEventListener('click', () => {
-  if (!state.tableData.length) return;
-
-  const headers = ['STORE_GRADE_ID','BRAND','LOCATION','STORE_NAME','COUNTRY',
-                    'DEPT','DEPT_NAME','CLASS','CLASS_NAME','SUBCLASS','SUB_NAME',
-                    'GRADE','CREATE_DATETIME','CREATE_ID','LAST_UPDATE_DATETIME','LAST_UPDATE_ID'];
-
-  const rows = state.tableData.map(r =>
-    headers.map(h => {
-      const v = r[h] ?? '';
-      return `"${String(v).replace(/"/g, '""')}"`;
-    }).join(',')
-  );
-
-  const csv = [headers.join(','), ...rows].join('\r\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-
-  const ts = new Date().toISOString().slice(0,10);
-  a.href     = url;
-  a.download = `store_grades_dept${state.filters.dept}_class${state.filters.class}_${ts}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('success', 'Export successful', `${state.tableData.length} rows exported to CSV`);
-});
-
-// ═══════════════════════════════════════════════════════════════════
-// TOAST SYSTEM
+// TOAST
 // ═══════════════════════════════════════════════════════════════════
 
 const ICONS = {
@@ -630,19 +50,696 @@ const ICONS = {
 function showToast(type, title, message, duration = 5000) {
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  toast.innerHTML = `
-    ${ICONS[type] || ICONS.info}
+  toast.innerHTML = `${ICONS[type] || ICONS.info}
     <div class="toast-content">
       <strong>${esc(title)}</strong>
       <span>${esc(message)}</span>
-    </div>
-  `;
-  els.toastContainer.appendChild(toast);
+    </div>`;
+  $('toast-container').appendChild(toast);
   setTimeout(() => {
     toast.classList.add('leaving');
     setTimeout(() => toast.remove(), 350);
   }, duration);
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// HEALTH
+// ═══════════════════════════════════════════════════════════════════
+
+async function checkHealth() {
+  try {
+    await apiFetch('/api/health');
+    $('status-dot').className = 'status-dot online';
+    $('status-text').textContent = 'API Connected';
+  } catch {
+    $('status-dot').className = 'status-dot error';
+    $('status-text').textContent = 'API Offline';
+    showToast('error', 'Connection Failed', 'Cannot reach the backend API.');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SIDEBAR NAVIGATION
+// ═══════════════════════════════════════════════════════════════════
+
+const sidebar   = $('sidebar');
+const sidebarToggle = $('sidebar-toggle');
+let sidebarCollapsed = false;
+
+sidebarToggle.addEventListener('click', () => {
+  sidebarCollapsed = !sidebarCollapsed;
+  sidebar.classList.toggle('collapsed', sidebarCollapsed);
+});
+
+function navigateTo(pageId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.remove('active');
+    n.removeAttribute('aria-current');
+  });
+
+  const page = $(pageId);
+  if (page) page.classList.remove('hidden');
+
+  const navId = 'nav-' + pageId.replace('page-', '');
+  const navEl = $(navId);
+  if (navEl) {
+    navEl.classList.add('active');
+    navEl.setAttribute('aria-current', 'page');
+  }
+}
+
+document.querySelectorAll('.nav-item').forEach(btn => {
+  btn.addEventListener('click', () => navigateTo(btn.dataset.page));
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// SHARED FILTER DATA (loaded once)
+// ═══════════════════════════════════════════════════════════════════
+
+let allFilters = { depts: [], classes: [], subclasses: [], stores: [], countries: [] };
+
+async function loadFilters() {
+  try {
+    allFilters = await apiFetch('/api/filters');
+    populateSharedFilters();
+  } catch (e) {
+    showToast('error', 'Filter Load Failed', e.message);
+  }
+}
+
+function populateSharedFilters() {
+  // ── Store Grading selects ──────────────────────────────────────
+  const deptSel = $('dept-select');
+  deptSel.innerHTML = '<option value="">Select Department...</option>';
+  allFilters.depts.forEach(d => {
+    deptSel.appendChild(new Option(d.DEPT_NAME ? `${d.DEPT} — ${d.DEPT_NAME}` : `${d.DEPT}`, d.DEPT));
+  });
+
+  const countrySel = $('country-select');
+  countrySel.innerHTML = '<option value="">All Countries</option>';
+  allFilters.countries.forEach(c => countrySel.appendChild(new Option(c.AREA_NAME, c.AREA_NAME)));
+
+  const storeSel = $('store-select');
+  storeSel.innerHTML = '<option value="">All Stores</option>';
+  allFilters.stores.forEach(s => storeSel.appendChild(new Option(s.STORE_NAME || s.STORE, s.STORE)));
+
+  // ── Product Master selects ─────────────────────────────────────
+  const pmDeptSel = $('pm-dept-select');
+  pmDeptSel.innerHTML = '<option value="">All Departments</option>';
+  allFilters.depts.forEach(d => {
+    pmDeptSel.appendChild(new Option(d.DEPT_NAME ? `${d.DEPT} — ${d.DEPT_NAME}` : `${d.DEPT}`, d.DEPT));
+  });
+
+  // ── Sales History selects ──────────────────────────────────────
+  const shDeptSel = $('sh-dept-select');
+  shDeptSel.innerHTML = '<option value="">All Departments</option>';
+  allFilters.depts.forEach(d => {
+    shDeptSel.appendChild(new Option(d.DEPT_NAME ? `${d.DEPT} — ${d.DEPT_NAME}` : `${d.DEPT}`, d.DEPT));
+  });
+
+  const shCountrySel = $('sh-country-select');
+  shCountrySel.innerHTML = '<option value="">All Countries</option>';
+  allFilters.countries.forEach(c => shCountrySel.appendChild(new Option(c.AREA_NAME, c.AREA_NAME)));
+
+  const shStoreSel = $('sh-store-select');
+  shStoreSel.innerHTML = '<option value="">All Stores</option>';
+  allFilters.stores.forEach(s => shStoreSel.appendChild(new Option(s.STORE_NAME || s.STORE, s.STORE)));
+
+  // Load brands for Product Master
+  loadPmBrands();
+}
+
+async function loadPmBrands() {
+  try {
+    const data = await apiFetch('/api/product-master?page=1&page_size=1');
+    const brandSel = $('pm-brand-select');
+    brandSel.innerHTML = '<option value="">All Brands</option>';
+    (data.brands || []).forEach(b => brandSel.appendChild(new Option(b, b)));
+  } catch {}
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ══════════════ PAGE 1: STORE GRADING ═══════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+
+const sgState = {
+  gradingLevel: 'class',
+  filters: { dept: null, class: null, subclass: null, country: null, store: null },
+  page: 1, pageSize: 50, totalRows: 0,
+  tableData: [], sortCol: null, sortDir: 'asc',
+  gradeCounts: {}, selectedClusters: 3, isGenerating: false,
+};
+
+// ── Cascading Class Filter ────────────────────────────────────────
+function populateSgClasses(dept) {
+  const sel = $('class-select');
+  sel.innerHTML = '<option value="">Select Class...</option>';
+  sel.disabled = true;
+  const filtered = allFilters.classes.filter(c => c.DEPT == dept);
+  filtered.forEach(c => sel.appendChild(new Option(c.CLASS_NAME ? `${c.CLASS} — ${c.CLASS_NAME}` : `${c.CLASS}`, c.CLASS)));
+  sel.disabled = filtered.length === 0;
+}
+
+function populateSgSubclasses(dept, cls) {
+  const sel = $('subclass-select');
+  sel.innerHTML = '<option value="">All Subclasses</option>';
+  const filtered = allFilters.subclasses.filter(s => s.DEPT == dept && s.CLASS == cls);
+  filtered.forEach(s => sel.appendChild(new Option(s.SUB_NAME ? `${s.SUBCLASS} — ${s.SUB_NAME}` : `${s.SUBCLASS}`, s.SUBCLASS)));
+  sel.disabled = (filtered.length === 0) || (sgState.gradingLevel === 'class');
+}
+
+$('dept-select').addEventListener('change', () => {
+  sgState.filters.dept = $('dept-select').value || null;
+  sgState.filters.class = null;
+  sgState.filters.subclass = null;
+  populateSgClasses(sgState.filters.dept || '');
+  $('subclass-select').innerHTML = '<option value="">All Subclasses</option>';
+  $('subclass-select').disabled = true;
+  updateSgButtons();
+});
+
+$('class-select').addEventListener('change', () => {
+  sgState.filters.class = $('class-select').value || null;
+  sgState.filters.subclass = null;
+  populateSgSubclasses(sgState.filters.dept || '', sgState.filters.class || '');
+  updateSgButtons();
+});
+
+$('subclass-select').addEventListener('change',  () => { sgState.filters.subclass = $('subclass-select').value || null; });
+$('country-select').addEventListener('change',   () => { sgState.filters.country  = $('country-select').value || null; });
+$('store-select').addEventListener('change',     () => { sgState.filters.store    = $('store-select').value || null; });
+
+function updateSgButtons() {
+  const ok = !!(sgState.filters.dept && sgState.filters.class);
+  $('btn-search').disabled   = !ok;
+  $('btn-generate').disabled = !ok;
+}
+
+// ── Level Toggle ──────────────────────────────────────────────────
+[$('level-class'), $('level-subclass')].forEach(btn => {
+  btn.addEventListener('click', () => {
+    sgState.gradingLevel = btn.dataset.level;
+    $('level-class').classList.toggle('active',    sgState.gradingLevel === 'class');
+    $('level-subclass').classList.toggle('active', sgState.gradingLevel === 'subclass');
+    $('level-class').setAttribute('aria-pressed',    String(sgState.gradingLevel === 'class'));
+    $('level-subclass').setAttribute('aria-pressed', String(sgState.gradingLevel === 'subclass'));
+    if (sgState.gradingLevel === 'class') {
+      $('subclass-select').value = '';
+      sgState.filters.subclass = null;
+      $('subclass-select').disabled = true;
+    } else {
+      $('subclass-select').disabled = !sgState.filters.class;
+    }
+    if (sgState.filters.dept && sgState.filters.class) { sgState.page = 1; fetchSgGrades(); }
+  });
+});
+
+// ── Search & Fetch ────────────────────────────────────────────────
+$('btn-search').addEventListener('click', () => { sgState.page = 1; fetchSgGrades(); });
+
+async function fetchSgGrades() {
+  if (!sgState.filters.dept || !sgState.filters.class) return;
+  const params = new URLSearchParams({ dept: sgState.filters.dept, class: sgState.filters.class, level: sgState.gradingLevel, page: sgState.page, page_size: sgState.pageSize });
+  if (sgState.filters.subclass) params.set('subclass', sgState.filters.subclass);
+  if (sgState.filters.country)  params.set('country',  sgState.filters.country);
+  if (sgState.filters.store)    params.set('store',    sgState.filters.store);
+  $('grid-count-label').textContent = 'Loading...';
+  $('btn-search').disabled = true;
+  try {
+    const data = await apiFetch(`/api/store-grades?${params}`);
+    sgState.totalRows   = data.total;
+    sgState.gradeCounts = data.grade_counts || {};
+    sgState.tableData   = data.data;
+    renderSgTable(); renderSgPagination(); renderSgStats();
+    $('btn-export').disabled = data.data.length === 0;
+  } catch (e) { showToast('error', 'Search Failed', e.message); }
+  finally { $('btn-search').disabled = !(sgState.filters.dept && sgState.filters.class); }
+}
+
+// ── Table Render ──────────────────────────────────────────────────
+function getSgSorted() {
+  if (!sgState.sortCol) return sgState.tableData;
+  return [...sgState.tableData].sort((a, b) => {
+    let av = a[sgState.sortCol] ?? '', bv = b[sgState.sortCol] ?? '';
+    const cmp = typeof av === 'number' && typeof bv === 'number' ? av - bv : String(av).localeCompare(String(bv));
+    return sgState.sortDir === 'asc' ? cmp : -cmp;
+  });
+}
+
+function gradeBadge(grade) {
+  if (!grade && grade !== 0) return `<span class="grade-badge gx">—</span>`;
+  const g = String(grade);
+  const cls = g === '1' ? 'g1' : g === '2' ? 'g2' : g === '3' ? 'g3' : 'gx';
+  return `<span class="grade-badge ${cls}">${esc(g)}</span>`;
+}
+
+function renderSgTable() {
+  const data = getSgSorted();
+  const total = sgState.totalRows, start = (sgState.page - 1) * sgState.pageSize + 1, end = Math.min(start + data.length - 1, total);
+
+  if (data.length === 0) {
+    $('empty-state').classList.remove('hidden');
+    $('data-table').classList.add('hidden');
+    $('grid-count-label').textContent = 'No results found';
+    return;
+  }
+  $('empty-state').classList.add('hidden');
+  $('data-table').classList.remove('hidden');
+  $('grid-count-label').textContent = `Showing ${start}–${end} of ${total} store grades`;
+
+  $('table-body').innerHTML = data.map(row => `<tr>
+    <td class="mono">${row.STORE_GRADE_ID ?? '—'}</td>
+    <td><strong>${esc(row.BRAND || '—')}</strong></td>
+    <td class="mono">${row.LOCATION ?? '—'}</td>
+    <td>${esc(row.STORE_NAME || '—')}</td>
+    <td>${esc(row.COUNTRY || '—')}</td>
+    <td class="mono">${row.DEPT ?? '—'}${row.DEPT_NAME ? `<br><span style="font-size:0.68rem;color:var(--text-muted)">${esc(row.DEPT_NAME)}</span>` : ''}</td>
+    <td class="mono">${row.CLASS ?? '—'}${row.CLASS_NAME ? `<br><span style="font-size:0.68rem;color:var(--text-muted)">${esc(row.CLASS_NAME)}</span>` : ''}</td>
+    <td class="mono">${row.SUBCLASS != null ? row.SUBCLASS : '<span class="text-dim">—</span>'}${row.SUB_NAME ? `<br><span style="font-size:0.68rem;color:var(--text-muted)">${esc(row.SUB_NAME)}</span>` : ''}</td>
+    <td>${gradeBadge(row.GRADE)}</td>
+    <td class="mono" style="font-size:0.7rem">${esc(row.CREATE_DATETIME ? row.CREATE_DATETIME.split(' ')[0] : '—')}</td>
+    <td class="mono" style="font-size:0.7rem">${esc(row.LAST_UPDATE_DATETIME ? row.LAST_UPDATE_DATETIME.split(' ')[0] : '—')}</td>
+  </tr>`).join('');
+}
+
+function renderSgStats() {
+  const c = sgState.gradeCounts || {};
+  $('stat-grade1').textContent = c['1'] || 0;
+  $('stat-grade2').textContent = c['2'] || 0;
+  $('stat-grade3').textContent = c['3'] || 0;
+  $('stat-total').textContent  = sgState.totalRows;
+}
+
+function renderSgPagination() {
+  const totalPages = Math.max(1, Math.ceil(sgState.totalRows / sgState.pageSize));
+  $('page-info').textContent = `Page ${sgState.page} of ${totalPages}`;
+  $('btn-prev').disabled = sgState.page <= 1;
+  $('btn-next').disabled = sgState.page >= totalPages;
+}
+
+$('btn-prev').addEventListener('click', () => { if (sgState.page > 1) { sgState.page--; fetchSgGrades(); } });
+$('btn-next').addEventListener('click', () => {
+  const tp = Math.ceil(sgState.totalRows / sgState.pageSize);
+  if (sgState.page < tp) { sgState.page++; fetchSgGrades(); }
+});
+
+// ── Sorting ───────────────────────────────────────────────────────
+document.querySelectorAll('#data-table th.sortable').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.sort;
+    if (sgState.sortCol === col) sgState.sortDir = sgState.sortDir === 'asc' ? 'desc' : 'asc';
+    else { sgState.sortCol = col; sgState.sortDir = 'asc'; }
+    document.querySelectorAll('#data-table th').forEach(h => { h.classList.remove('sort-asc','sort-desc'); h.removeAttribute('aria-sort'); });
+    th.classList.add(sgState.sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+    th.setAttribute('aria-sort', sgState.sortDir === 'asc' ? 'ascending' : 'descending');
+    renderSgTable();
+  });
+});
+
+// ── Reset ─────────────────────────────────────────────────────────
+$('btn-reset').addEventListener('click', () => {
+  ['dept-select','class-select','subclass-select','country-select','store-select'].forEach(id => { $(id).value = ''; });
+  $('class-select').disabled = true;
+  $('subclass-select').disabled = true;
+  Object.assign(sgState.filters, { dept: null, class: null, subclass: null, country: null, store: null });
+  sgState.tableData = []; sgState.totalRows = 0; sgState.gradeCounts = {}; sgState.page = 1; sgState.sortCol = null;
+  $('btn-search').disabled = true; $('btn-generate').disabled = true; $('btn-export').disabled = true;
+  $('empty-state').classList.remove('hidden'); $('data-table').classList.add('hidden');
+  $('grid-count-label').textContent = 'Select filters and search to load data';
+  ['stat-grade1','stat-grade2','stat-grade3','stat-total'].forEach(id => $(id).textContent = '—');
+  renderSgPagination();
+});
+
+// ── Export CSV ────────────────────────────────────────────────────
+$('btn-export').addEventListener('click', () => {
+  if (!sgState.tableData.length) return;
+  const headers = ['STORE_GRADE_ID','BRAND','LOCATION','STORE_NAME','COUNTRY','DEPT','DEPT_NAME','CLASS','CLASS_NAME','SUBCLASS','SUB_NAME','GRADE','CREATE_DATETIME','LAST_UPDATE_DATETIME'];
+  const rows = sgState.tableData.map(r => headers.map(h => `"${String(r[h] ?? '').replace(/"/g,'""')}"`).join(','));
+  const csv  = [headers.join(','), ...rows].join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = `store_grades_dept${sgState.filters.dept}_class${sgState.filters.class}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  showToast('success', 'Exported', `${sgState.tableData.length} rows downloaded`);
+});
+
+// ── Grading Modal ─────────────────────────────────────────────────
+$('btn-generate').addEventListener('click', openGenerateModal);
+
+function openGenerateModal() {
+  const dept    = $('dept-select').options[$('dept-select').selectedIndex]?.text    || sgState.filters.dept;
+  const cls     = $('class-select').options[$('class-select').selectedIndex]?.text  || sgState.filters.class;
+  const sub     = $('subclass-select').value ? ($('subclass-select').options[$('subclass-select').selectedIndex]?.text || sgState.filters.subclass) : null;
+  const country = sgState.filters.country || 'All Countries';
+  const store   = sgState.filters.store   ? ($('store-select').options[$('store-select').selectedIndex]?.text || sgState.filters.store) : 'All Stores';
+  const levelLabel = sgState.gradingLevel === 'class' ? 'Class Level' : 'Subclass Level';
+  const levelDesc  = sgState.gradingLevel === 'class'
+    ? 'Generates <strong>one grade per store</strong> for the entire Class.'
+    : sub ? `Grade for <strong>Subclass: ${esc(sub)}</strong> only.`
+          : 'Generates grades <strong>independently per subclass</strong>.';
+
+  $('modal-scope').innerHTML = `
+    <div class="scope-row"><span class="scope-key">Granularity</span><span class="scope-value" style="color:var(--accent-generate)">${esc(levelLabel)}</span></div>
+    <div class="scope-row" style="margin-bottom:10px;font-size:0.78rem;opacity:0.8">${levelDesc}</div>
+    <div class="scope-row"><span class="scope-key">Dept</span><span class="scope-value">${esc(dept)}</span></div>
+    <div class="scope-row"><span class="scope-key">Class</span><span class="scope-value">${esc(cls)}</span></div>
+    ${sub ? `<div class="scope-row"><span class="scope-key">Subclass</span><span class="scope-value">${esc(sub)}</span></div>` : ''}
+    <div class="scope-row"><span class="scope-key">Country</span><span class="scope-value">${esc(country)}</span></div>
+    <div class="scope-row"><span class="scope-key">Store</span><span class="scope-value">${esc(store)}</span></div>`;
+  $('confirm-modal').classList.remove('hidden');
+}
+
+document.querySelectorAll('.cluster-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.cluster-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    sgState.selectedClusters = parseInt(btn.dataset.clusters, 10);
+  });
+});
+
+$('modal-cancel').addEventListener('click',  () => $('confirm-modal').classList.add('hidden'));
+$('confirm-modal').addEventListener('click', e => { if (e.target === $('confirm-modal')) $('confirm-modal').classList.add('hidden'); });
+$('modal-confirm').addEventListener('click', async () => { $('confirm-modal').classList.add('hidden'); await runSgGrading(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') $('confirm-modal').classList.add('hidden'); });
+
+async function runSgGrading() {
+  if (sgState.isGenerating) return;
+  sgState.isGenerating = true;
+  showSgProgress(true, 'Running K-means Clustering...', 'Preparing data');
+  animateSgBar(0, 30, 1000);
+  try {
+    const payload = { dept: parseInt(sgState.filters.dept, 10), class: parseInt(sgState.filters.class, 10), level: sgState.gradingLevel, clusters: sgState.selectedClusters };
+    if (sgState.filters.subclass) payload.subclass = parseInt(sgState.filters.subclass, 10);
+    if (sgState.filters.country)  payload.country  = sgState.filters.country;
+    if (sgState.filters.store)    payload.store     = parseInt(sgState.filters.store, 10);
+    animateSgBar(30, 80, 4000);
+    updateSgProgress('Computing grades...', 'K-means clustering in progress');
+    const result = await apiFetch('/api/generate-grades', { method: 'POST', body: JSON.stringify(payload) });
+    animateSgBar(80, 100, 500);
+    await sleep(600);
+    showSgProgress(false);
+    showToast('success', 'Grading Complete!', `${result.inserts} inserted, ${result.updates} updated. ${result.rows_processed} stores processed.`);
+    await fetchSgGrades();
+  } catch (e) { showSgProgress(false); showToast('error', 'Grading Failed', e.message); }
+  finally { sgState.isGenerating = false; }
+}
+
+function showSgProgress(show, title='', sub='') {
+  if (show) {
+    $('progress-title').textContent = title; $('progress-sub').textContent = sub;
+    $('progress-banner').classList.remove('hidden'); $('progress-bar').style.width = '0%';
+    $('btn-generate').disabled = true;
+  } else { $('progress-banner').classList.add('hidden'); updateSgButtons(); }
+}
+function updateSgProgress(title, sub) { $('progress-title').textContent = title; $('progress-sub').textContent = sub; }
+function animateSgBar(from, to, dur) {
+  const s = Date.now();
+  const step = () => { const p = Math.min(1,(Date.now()-s)/dur); $('progress-bar').style.width=`${from+(to-from)*p}%`; if(p<1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ═══════════════════════════════════════════════════════════════════
+// ══════════════ PAGE 2: PRODUCT MASTER ══════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+
+const pmState = { page: 1, pageSize: 50, total: 0, data: [] };
+
+// Cascading selects
+$('pm-dept-select').addEventListener('change', () => {
+  const dept = $('pm-dept-select').value;
+  const pmClassSel = $('pm-class-select');
+  pmClassSel.innerHTML = '<option value="">All Classes</option>';
+  pmClassSel.disabled  = !dept;
+  if (dept) {
+    allFilters.classes.filter(c => c.DEPT == dept).forEach(c => pmClassSel.appendChild(new Option(c.CLASS_NAME ? `${c.CLASS} — ${c.CLASS_NAME}` : `${c.CLASS}`, c.CLASS)));
+  }
+  $('pm-subclass-select').innerHTML = '<option value="">All Subclasses</option>';
+  $('pm-subclass-select').disabled  = true;
+});
+
+$('pm-class-select').addEventListener('change', () => {
+  const dept = $('pm-dept-select').value, cls = $('pm-class-select').value;
+  const pmSubSel = $('pm-subclass-select');
+  pmSubSel.innerHTML = '<option value="">All Subclasses</option>';
+  pmSubSel.disabled  = !cls;
+  if (cls) {
+    allFilters.subclasses.filter(s => s.DEPT == dept && s.CLASS == cls).forEach(s => pmSubSel.appendChild(new Option(s.SUB_NAME ? `${s.SUBCLASS} — ${s.SUB_NAME}` : `${s.SUBCLASS}`, s.SUBCLASS)));
+  }
+});
+
+$('pm-btn-reset').addEventListener('click', () => {
+  ['pm-brand-select','pm-dept-select','pm-class-select','pm-subclass-select'].forEach(id => { $(id).value = ''; });
+  $('pm-search').value = '';
+  $('pm-class-select').disabled = $('pm-subclass-select').disabled = true;
+  pmState.page = 1; pmState.total = 0; pmState.data = [];
+  $('pm-empty-state').classList.remove('hidden'); $('pm-data-table').classList.add('hidden');
+  $('pm-count-label').textContent = 'Use filters to search the product catalog';
+  $('pm-btn-export').disabled = true;
+  renderPmPagination();
+});
+
+$('pm-btn-search').addEventListener('click', () => { pmState.page = 1; fetchPm(); });
+
+// Search on Enter in text input
+$('pm-search').addEventListener('keydown', e => { if (e.key === 'Enter') { pmState.page = 1; fetchPm(); } });
+
+async function fetchPm() {
+  const params = new URLSearchParams({ page: pmState.page, page_size: pmState.pageSize });
+  const dept = $('pm-dept-select').value, cls = $('pm-class-select').value, sub = $('pm-subclass-select').value;
+  const brand = $('pm-brand-select').value, search = $('pm-search').value.trim();
+  if (dept)   params.set('dept',     dept);
+  if (cls)    params.set('class',    cls);
+  if (sub)    params.set('subclass', sub);
+  if (brand)  params.set('brand',    brand);
+  if (search) params.set('search',   search);
+
+  $('pm-count-label').textContent = 'Loading...';
+  try {
+    const data = await apiFetch(`/api/product-master?${params}`);
+    pmState.total = data.total; pmState.data = data.data;
+    renderPmTable(); renderPmPagination();
+    $('pm-btn-export').disabled = data.data.length === 0;
+  } catch (e) { showToast('error', 'Product Master Error', e.message); }
+}
+
+function renderPmTable() {
+  if (pmState.data.length === 0) {
+    $('pm-empty-state').classList.remove('hidden'); $('pm-data-table').classList.add('hidden');
+    $('pm-count-label').textContent = 'No products found'; return;
+  }
+  $('pm-empty-state').classList.add('hidden'); $('pm-data-table').classList.remove('hidden');
+  const start = (pmState.page - 1) * pmState.pageSize + 1, end = Math.min(start + pmState.data.length - 1, pmState.total);
+  $('pm-count-label').textContent = `Showing ${start}–${end} of ${pmState.total} products`;
+
+  $('pm-table-body').innerHTML = pmState.data.map(r => `<tr>
+    <td><strong>${esc(r.BRAND || '—')}</strong></td>
+    <td class="mono" style="font-size:0.72rem">${esc(r.OPTION_ID || '—')}</td>
+    <td style="max-width:220px;white-space:normal">${esc(r.OPTION_DESC || '—')}</td>
+    <td class="mono" style="font-size:0.7rem">${esc(r.VPN || '—')}</td>
+    <td class="mono">${r.DEPT ?? '—'}<br><span style="font-size:0.68rem;color:var(--text-muted)">${esc(r.DEPT_NAME||'')}</span></td>
+    <td class="mono">${r.CLASS ?? '—'}<br><span style="font-size:0.68rem;color:var(--text-muted)">${esc(r.CLASS_NAME||'')}</span></td>
+    <td class="mono">${r.SUBCLASS ?? '—'}<br><span style="font-size:0.68rem;color:var(--text-muted)">${esc(r.SUB_NAME||'')}</span></td>
+    <td>${esc(r.GENDER || '—')}</td>
+    <td>${esc(r.FABRIC || '—')}</td>
+    <td>${esc(r.COLOR_SHADE || '—')}</td>
+    <td>${esc(r.SEASON_CODE || '—')}</td>
+    <td>${esc(r.SILHOUETTE || '—')}</td>
+    <td>${esc(r.PRICE_STRATEGY || '—')}</td>
+    <td>${esc(r.SELLING_PHASE || '—')}</td>
+    <td>${esc(r.LABEL || '—')}</td>
+  </tr>`).join('');
+}
+
+function renderPmPagination() {
+  const tp = Math.max(1, Math.ceil(pmState.total / pmState.pageSize));
+  $('pm-page-info').textContent = `Page ${pmState.page} of ${tp}`;
+  $('pm-btn-prev').disabled = pmState.page <= 1;
+  $('pm-btn-next').disabled = pmState.page >= tp;
+}
+
+$('pm-btn-prev').addEventListener('click', () => { if (pmState.page > 1) { pmState.page--; fetchPm(); } });
+$('pm-btn-next').addEventListener('click', () => { const tp=Math.ceil(pmState.total/pmState.pageSize); if(pmState.page<tp){pmState.page++;fetchPm();} });
+
+$('pm-btn-export').addEventListener('click', () => {
+  if (!pmState.data.length) return;
+  const headers = ['BRAND','OPTION_ID','OPTION_DESC','VPN','DEPT','DEPT_NAME','CLASS','CLASS_NAME','SUBCLASS','SUB_NAME','GENDER','FABRIC','COLOR_SHADE','COLOR_FAMILY','SEASON_CODE','SEASONALITY','SILHOUETTE','PRICE_STRATEGY','SELLING_PHASE','LABEL','COLLECTION'];
+  const rows = pmState.data.map(r => headers.map(h => `"${String(r[h]??'').replace(/"/g,'""')}"`).join(','));
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([[headers.join(','),...rows].join('\r\n')], {type:'text/csv'}));
+  a.download = `product_master_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  showToast('success', 'Exported', `${pmState.data.length} products downloaded`);
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// ══════════════ PAGE 3: SALES HISTORY ═══════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+
+const shState = { level: 'class', locLevel: 'store', page: 1, pageSize: 50, total: 0, data: [] };
+
+// Level Buttons
+document.querySelectorAll('[data-sh-level]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    shState.level = btn.dataset.shLevel;
+    document.querySelectorAll('[data-sh-level]').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed','false'); });
+    btn.classList.add('active'); btn.setAttribute('aria-pressed','true');
+  });
+});
+
+// Location Level Buttons (Country/Store)
+document.querySelectorAll('[data-sh-loc]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    shState.locLevel = btn.dataset.shLoc;
+    document.querySelectorAll('[data-sh-loc]').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed','false'); });
+    btn.classList.add('active'); btn.setAttribute('aria-pressed','true');
+    
+    // Disable store filter if country level is selected
+    const storeSel = $('sh-store-select');
+    if (shState.locLevel === 'country') {
+      storeSel.value = '';
+      storeSel.disabled = true;
+    } else {
+      storeSel.disabled = false;
+    }
+  });
+});
+
+// Cascading selects for Sales History
+$('sh-dept-select').addEventListener('change', () => {
+  const dept = $('sh-dept-select').value;
+  const shClassSel = $('sh-class-select');
+  shClassSel.innerHTML = '<option value="">All Classes</option>';
+  shClassSel.disabled  = !dept;
+  if (dept) allFilters.classes.filter(c => c.DEPT == dept).forEach(c => shClassSel.appendChild(new Option(c.CLASS_NAME ? `${c.CLASS} — ${c.CLASS_NAME}` : `${c.CLASS}`, c.CLASS)));
+  $('sh-subclass-select').innerHTML = '<option value="">All Subclasses</option>';
+  $('sh-subclass-select').disabled  = true;
+});
+
+$('sh-class-select').addEventListener('change', () => {
+  const dept = $('sh-dept-select').value, cls = $('sh-class-select').value;
+  const shSubSel = $('sh-subclass-select');
+  shSubSel.innerHTML = '<option value="">All Subclasses</option>';
+  shSubSel.disabled  = !cls;
+  if (cls) allFilters.subclasses.filter(s => s.DEPT == dept && s.CLASS == cls).forEach(s => shSubSel.appendChild(new Option(s.SUB_NAME ? `${s.SUBCLASS} — ${s.SUB_NAME}` : `${s.SUBCLASS}`, s.SUBCLASS)));
+});
+
+$('sh-btn-reset').addEventListener('click', () => {
+  ['sh-dept-select','sh-class-select','sh-subclass-select','sh-country-select','sh-store-select'].forEach(id => { $(id).value=''; });
+  $('sh-date-from').value = ''; $('sh-date-to').value = '';
+  $('sh-class-select').disabled = $('sh-subclass-select').disabled = true;
+  shState.page = 1; shState.total = 0; shState.data = [];
+  $('sh-empty-state').classList.remove('hidden'); $('sh-data-table').classList.add('hidden');
+  $('sh-count-label').textContent = 'Use filters to explore sales data';
+  $('sh-btn-export').disabled = true;
+  ['sh-stat-regular','sh-stat-promo','sh-stat-mrkdwn','sh-stat-total'].forEach(id => $(id).textContent='—');
+  renderShPagination();
+});
+
+$('sh-btn-search').addEventListener('click', () => { shState.page = 1; fetchSh(); });
+
+async function fetchSh() {
+  const params = new URLSearchParams({ level: shState.level, loc_level: shState.locLevel, page: shState.page, page_size: shState.pageSize });
+  const dept     = $('sh-dept-select').value;
+  const cls      = $('sh-class-select').value;
+  const sub      = $('sh-subclass-select').value;
+  const country  = $('sh-country-select').value;
+  const store    = $('sh-store-select').value;
+  const dateFrom = $('sh-date-from').value.trim();
+  const dateTo   = $('sh-date-to').value.trim();
+  if (dept)     params.set('dept',      dept);
+  if (cls)      params.set('class',     cls);
+  if (sub)      params.set('subclass',  sub);
+  if (country)  params.set('country',   country);
+  if (store)    params.set('store',     store);
+  if (dateFrom) params.set('date_from', dateFrom);
+  if (dateTo)   params.set('date_to',   dateTo);
+
+  $('sh-count-label').textContent = 'Loading...';
+  try {
+    const data = await apiFetch(`/api/sales-history?${params}`);
+    shState.total = data.total; shState.data = data.data;
+    renderShTable(data.level); renderShPagination(); renderShStats();
+    $('sh-btn-export').disabled = data.data.length === 0;
+  } catch (e) { showToast('error', 'Sales History Error', e.message); }
+}
+
+function renderShStats() {
+  let reg=0, pro=0, mkd=0, tot=0;
+  shState.data.forEach(r => { reg += r.REGULAR_UNITS||0; pro += r.PROMO_UNITS||0; mkd += r.MRKDWN_UNITS||0; tot += r.TOTAL_UNITS||0; });
+  $('sh-stat-regular').textContent = fmt(reg);
+  $('sh-stat-promo').textContent   = fmt(pro);
+  $('sh-stat-mrkdwn').textContent  = fmt(mkd);
+  $('sh-stat-total').textContent   = fmt(tot);
+}
+
+// Dynamic column headers per level
+const SH_LEVEL_COLS = {
+  dept:     ['BRAND','DEPT','DEPT_NAME'],
+  class:    ['BRAND','DEPT','DEPT_NAME','CLASS','CLASS_NAME'],
+  subclass: ['BRAND','DEPT','DEPT_NAME','CLASS','CLASS_NAME','SUBCLASS','SUB_NAME'],
+  sku:      ['BRAND','DEPT','DEPT_NAME','CLASS','CLASS_NAME','SUBCLASS','SUB_NAME','OPTION_ID','OPTION_DESC'],
+};
+
+// User-friendly column labels
+const COL_LABELS = {
+  BRAND:'Brand', DEPT:'Dept', DEPT_NAME:'Dept Name', CLASS:'Class', CLASS_NAME:'Class Name',
+  SUBCLASS:'Subclass', SUB_NAME:'Sub Name', OPTION_ID:'Option ID', OPTION_DESC:'Description',
+  STORE:'Store', STORE_NAME:'Store Name', COUNTRY:'Country',
+  REGULAR_UNITS:'Regular', PROMO_UNITS:'Promo', MRKDWN_UNITS:'Markdown', TOTAL_UNITS:'Total Units',
+  BASE_HISTORY:'Base Hist', WEEKS_WITH_SALES:'Weeks',
+};
+
+function renderShTable(level) {
+  if (shState.data.length === 0) {
+    $('sh-empty-state').classList.remove('hidden'); $('sh-data-table').classList.add('hidden');
+    $('sh-count-label').textContent = 'No sales data found'; return;
+  }
+  $('sh-empty-state').classList.add('hidden'); $('sh-data-table').classList.remove('hidden');
+  const start = (shState.page-1)*shState.pageSize+1, end = Math.min(start+shState.data.length-1, shState.total);
+  $('sh-count-label').textContent = `Showing ${start}–${end} of ${shState.total} rows`;
+
+  const baseAlwaysCols = ['COUNTRY','REGULAR_UNITS','PROMO_UNITS','MRKDWN_UNITS','TOTAL_UNITS','BASE_HISTORY','WEEKS_WITH_SALES'];
+  const locCols = shState.locLevel === 'store' ? ['STORE','STORE_NAME'] : [];
+  const cols = [...(SH_LEVEL_COLS[level] || SH_LEVEL_COLS.class), ...locCols, ...baseAlwaysCols];
+
+  // Header
+  $('sh-table-head').innerHTML = cols.map(c => `<th>${COL_LABELS[c] || c}</th>`).join('');
+
+  // Body
+  const unitCols = new Set(['REGULAR_UNITS','PROMO_UNITS','MRKDWN_UNITS','TOTAL_UNITS','BASE_HISTORY','WEEKS_WITH_SALES']);
+  const badgeMap = { REGULAR_UNITS:'reg', PROMO_UNITS:'pro', MRKDWN_UNITS:'mkd', TOTAL_UNITS:'tot' };
+
+  $('sh-table-body').innerHTML = shState.data.map(row => `<tr>${cols.map(c => {
+    const v = row[c];
+    if (badgeMap[c] !== undefined) {
+      return `<td><span class="unit-badge ${badgeMap[c]}">${fmt(v)}</span></td>`;
+    }
+    if (unitCols.has(c)) return `<td class="mono">${fmt(v)}</td>`;
+    if (c === 'DEPT' || c === 'CLASS' || c === 'SUBCLASS' || c === 'STORE') return `<td class="mono">${v ?? '—'}</td>`;
+    return `<td>${esc(v ?? '—')}</td>`;
+  }).join('')}</tr>`).join('');
+}
+
+function renderShPagination() {
+  const tp = Math.max(1, Math.ceil(shState.total / shState.pageSize));
+  $('sh-page-info').textContent = `Page ${shState.page} of ${tp}`;
+  $('sh-btn-prev').disabled = shState.page <= 1;
+  $('sh-btn-next').disabled = shState.page >= tp;
+}
+
+$('sh-btn-prev').addEventListener('click', () => { if(shState.page>1){shState.page--;fetchSh();} });
+$('sh-btn-next').addEventListener('click', () => { const tp=Math.ceil(shState.total/shState.pageSize);if(shState.page<tp){shState.page++;fetchSh();} });
+
+$('sh-btn-export').addEventListener('click', () => {
+  if (!shState.data.length) return;
+  const baseAlwaysCols = ['COUNTRY','REGULAR_UNITS','PROMO_UNITS','MRKDWN_UNITS','TOTAL_UNITS','BASE_HISTORY','WEEKS_WITH_SALES'];
+  const locCols = shState.locLevel === 'store' ? ['STORE','STORE_NAME'] : [];
+  const cols = [...(SH_LEVEL_COLS[shState.level]||SH_LEVEL_COLS.class), ...locCols, ...baseAlwaysCols];
+  const rows = shState.data.map(r => cols.map(c => `"${String(r[c]??'').replace(/"/g,'""')}"`).join(','));
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([[cols.join(','),...rows].join('\r\n')],{type:'text/csv'}));
+  a.download = `sales_history_${shState.level}_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  showToast('success', 'Exported', `${shState.data.length} rows downloaded`);
+});
 
 // ═══════════════════════════════════════════════════════════════════
 // INIT

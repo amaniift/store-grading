@@ -294,10 +294,190 @@ def generate_grades():
         return jsonify({"error": str(e)}), 500
 
 
+# ── Product Master ────────────────────────────────────────────────────────────
+
+@app.route("/api/product-master")
+def get_product_master():
+    """
+    Paginated product master data from product_option_dim.
+    Optional filters: dept, class, subclass, brand, search (OPTION_ID / OPTION_DESC).
+    """
+    dept     = request.args.get("dept",     type=int,  default=None)
+    class_   = request.args.get("class",    type=int,  default=None)
+    subclass = request.args.get("subclass", type=int,  default=None)
+    brand    = request.args.get("brand",    type=str,  default=None)
+    search   = request.args.get("search",   type=str,  default=None)
+    page     = request.args.get("page",     type=int,  default=1)
+    page_size = request.args.get("page_size", type=int, default=50)
+
+    try:
+        conn = get_db()
+
+        sql = """
+            SELECT
+                BRAND, OPTION_ID, OPTION_DESC, VPN,
+                DEPT, DEPT_NAME, CLASS, CLASS_NAME,
+                SUBCLASS, SUB_NAME,
+                FABRIC, COLOR_SHADE, COLOR_FAMILY,
+                SEASON_CODE, SEASONALITY, SILHOUETTE,
+                GENDER, PRICE_STRATEGY, SELLING_PHASE,
+                LABEL, COLLECTION
+            FROM product_option_dim
+            WHERE 1=1
+        """
+        params: list = []
+
+        if dept is not None:
+            sql += " AND DEPT = ?"
+            params.append(dept)
+        if class_ is not None:
+            sql += " AND CLASS = ?"
+            params.append(class_)
+        if subclass is not None:
+            sql += " AND SUBCLASS = ?"
+            params.append(subclass)
+        if brand:
+            sql += " AND BRAND = ?"
+            params.append(brand)
+        if search:
+            sql += " AND (OPTION_ID LIKE ? OR OPTION_DESC LIKE ?)"
+            params += [f"%{search}%", f"%{search}%"]
+
+        total = conn.execute(f"SELECT COUNT(*) FROM ({sql})", params).fetchone()[0]
+        offset = (page - 1) * page_size
+        sql += f" ORDER BY BRAND, DEPT, CLASS, SUBCLASS, OPTION_ID LIMIT {page_size} OFFSET {offset}"
+        rows = rows_to_list(conn.execute(sql, params).fetchall())
+
+        # distinct brands for filter dropdown
+        brands = [r["BRAND"] for r in rows_to_list(
+            conn.execute("SELECT DISTINCT BRAND FROM product_option_dim WHERE BRAND IS NOT NULL ORDER BY BRAND").fetchall()
+        )]
+
+        conn.close()
+        return jsonify({"total": total, "page": page, "page_size": page_size,
+                        "brands": brands, "data": rows})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+# ── Sales History ─────────────────────────────────────────────────────────────
+
+@app.route("/api/sales-history")
+def get_sales_history():
+    """
+    Aggregated sales history at configurable hierarchy + location levels.
+    level    : dept | class | subclass | sku
+    loc_level: country | store  (controls location grouping granularity)
+    Optional : dept, class, subclass, store (only used when loc_level=store), country, date_from, date_to
+    """
+    level     = request.args.get("level",     type=str, default="class")
+    loc_level = request.args.get("loc_level", type=str, default="store")
+    dept      = request.args.get("dept",      type=int, default=None)
+    class_    = request.args.get("class",     type=int, default=None)
+    subclass  = request.args.get("subclass",  type=int, default=None)
+    store     = request.args.get("store",     type=int, default=None)
+    country   = request.args.get("country",   type=str, default=None)
+    date_from = request.args.get("date_from", type=str, default=None)
+    date_to   = request.args.get("date_to",   type=str, default=None)
+    page      = request.args.get("page",      type=int, default=1)
+    page_size = request.args.get("page_size", type=int, default=50)
+
+    valid_levels    = ("dept", "class", "subclass", "sku")
+    valid_loc_levels = ("country", "store")
+    if level not in valid_levels:
+        return jsonify({"error": f"level must be one of {valid_levels}"}), 400
+    if loc_level not in valid_loc_levels:
+        return jsonify({"error": f"loc_level must be one of {valid_loc_levels}"}), 400
+
+    try:
+        conn = get_db()
+
+        # Base query: join sales → product → location
+        base_sql = """
+            FROM sales_hist_fact s
+            JOIN product_option_dim p ON s.OPTION_ID = p.OPTION_ID
+            LEFT JOIN location_st_master l ON s.STORE = l.STORE
+            WHERE 1=1
+        """
+        params: list = []
+
+        if dept is not None:
+            base_sql += " AND p.DEPT = ?"
+            params.append(dept)
+        if class_ is not None:
+            base_sql += " AND p.CLASS = ?"
+            params.append(class_)
+        if subclass is not None:
+            base_sql += " AND p.SUBCLASS = ?"
+            params.append(subclass)
+        # Store filter only applied at store level
+        if store is not None and loc_level == "store":
+            base_sql += " AND s.STORE = ?"
+            params.append(store)
+        if country:
+            base_sql += " AND l.AREA_NAME = ?"
+            params.append(country)
+        if date_from:
+            base_sql += " AND s.TIME_ID >= ?"
+            params.append(date_from)
+        if date_to:
+            base_sql += " AND s.TIME_ID <= ?"
+            params.append(date_to)
+
+        # Product hierarchy dims per level
+        level_dims = {
+            "dept":     ["p.BRAND", "p.DEPT", "p.DEPT_NAME"],
+            "class":    ["p.BRAND", "p.DEPT", "p.DEPT_NAME", "p.CLASS", "p.CLASS_NAME"],
+            "subclass": ["p.BRAND", "p.DEPT", "p.DEPT_NAME", "p.CLASS", "p.CLASS_NAME",
+                         "p.SUBCLASS", "p.SUB_NAME"],
+            "sku":      ["p.BRAND", "p.DEPT", "p.DEPT_NAME", "p.CLASS", "p.CLASS_NAME",
+                         "p.SUBCLASS", "p.SUB_NAME", "p.OPTION_ID", "p.OPTION_DESC"],
+        }
+
+        # Location dims depend on loc_level
+        # For SELECT we alias l.AREA_NAME → COUNTRY; for GROUP BY we use the raw column
+        if loc_level == "country":
+            loc_select  = ["l.AREA_NAME AS COUNTRY"]
+            loc_groupby = ["l.AREA_NAME"]
+        else:  # store
+            loc_select  = ["s.STORE", "l.STORE_NAME", "l.AREA_NAME AS COUNTRY"]
+            loc_groupby = ["s.STORE", "l.STORE_NAME", "l.AREA_NAME"]
+
+        sel_cols   = level_dims[level] + loc_select
+        grp_cols   = level_dims[level] + loc_groupby
+        select_str = ", ".join(sel_cols)
+        group_by   = ", ".join(grp_cols)
+
+        agg_cols = """
+            SUM(s.REGULAR_SLS_UNITS)  AS REGULAR_UNITS,
+            SUM(s.PROMO_SLS_UNITS)    AS PROMO_UNITS,
+            SUM(s.MRKDWN_SLS_UNITS)   AS MRKDWN_UNITS,
+            SUM(s.REGULAR_SLS_UNITS + s.PROMO_SLS_UNITS + s.MRKDWN_SLS_UNITS) AS TOTAL_UNITS,
+            SUM(s.BASE_HISTORY)        AS BASE_HISTORY,
+            COUNT(DISTINCT s.TIME_ID)  AS WEEKS_WITH_SALES
+        """
+
+        agg_sql = f"SELECT {select_str}, {agg_cols} {base_sql} GROUP BY {group_by}"
+
+        total = conn.execute(f"SELECT COUNT(*) FROM ({agg_sql})", params).fetchone()[0]
+
+        offset    = (page - 1) * page_size
+        paged_sql = agg_sql + f" ORDER BY TOTAL_UNITS DESC LIMIT {page_size} OFFSET {offset}"
+        rows      = rows_to_list(conn.execute(paged_sql, params).fetchall())
+
+        conn.close()
+        return jsonify({"total": total, "page": page, "page_size": page_size,
+                        "level": level, "loc_level": loc_level, "data": rows})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
 # ─── Startup ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     print("Initializing database (first run only)...")
     init_db(force_reload=False)
-    print(f"Starting Flask server — frontend at http://localhost:5000")
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    print(f"Starting Flask server — frontend at http://localhost:5001")
+    app.run(host="0.0.0.0", port=5001, debug=False)
+
