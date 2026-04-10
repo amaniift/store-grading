@@ -195,10 +195,28 @@ CREATE TABLE IF NOT EXISTS store_grade (
     SUBCLASS              INTEGER,
     GRADE                 TEXT,
     CREATE_DATETIME       TEXT,
-    CREATE_ID             TEXT,
-    LAST_UPDATE_DATETIME  TEXT,
     LAST_UPDATE_ID        TEXT,
     PUBLISH_STATUS        TEXT DEFAULT 'N'
+)
+"""
+
+DDL_GRADING_RUN_LOG = """
+CREATE TABLE IF NOT EXISTS grading_run_log (
+    RUN_ID          INTEGER PRIMARY KEY AUTOINCREMENT,
+    BRAND           TEXT,
+    DEPT            INTEGER,
+    CLASS           INTEGER,
+    SUBCLASS        INTEGER,
+    COUNTRY         TEXT,
+    STORE           INTEGER,
+    LEVEL           TEXT,
+    CLUSTERS        INTEGER,
+    FROM_DATE       TEXT,
+    TO_DATE         TEXT,
+    STATUS          TEXT, -- SUBMITTED, IN_PROGRESS, COMPLETED, ERROR
+    MESSAGE         TEXT,
+    START_TIME      TEXT,
+    END_TIME        TEXT
 )
 """
 
@@ -264,7 +282,7 @@ def init_db(force_reload: bool = False) -> None:
     cur = conn.cursor()
 
     print("Creating tables...")
-    for ddl in [DDL_SALES_HIST_FACT, DDL_PRODUCT_OPTION_DIM, DDL_LOCATION_ST_MASTER, DDL_STORE_GRADE]:
+    for ddl in [DDL_SALES_HIST_FACT, DDL_PRODUCT_OPTION_DIM, DDL_LOCATION_ST_MASTER, DDL_STORE_GRADE, DDL_GRADING_RUN_LOG]:
         cur.execute(ddl)
     
     # Migration for PUBLISH_STATUS if it doesn't exist

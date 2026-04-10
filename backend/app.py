@@ -16,6 +16,8 @@ import json
 import traceback
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
@@ -33,6 +35,9 @@ _grading_spec.loader.exec_module(_grading_mod)
 run_grading = _grading_mod.run_grading
 update_store_grades = _grading_mod.update_store_grades
 
+# Background Task Executor
+executor = ThreadPoolExecutor(max_workers=4)
+
 # ─── App Setup ───────────────────────────────────────────────────────────────
 
 FRONTEND_DIR = os.path.join(BASE_DIR, "..", "frontend")
@@ -44,6 +49,59 @@ CORS(app)
 
 def rows_to_list(rows) -> list[dict]:
     return [dict(r) for r in rows]
+
+def log_grading_run(params: dict) -> int:
+    """Create initial log entry for a grading run."""
+    conn = get_db()
+    now = datetime.now().isoformat()
+    cur = conn.execute("""
+        INSERT INTO grading_run_log (
+            DEPT, CLASS, SUBCLASS, LEVEL, COUNTRY, STORE, CLUSTERS, 
+            FROM_DATE, TO_DATE, STATUS, START_TIME
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'SUBMITTED', ?)
+    """, (
+        params.get("dept"), params.get("class"), params.get("subclass"),
+        params.get("level"), params.get("country"), params.get("store"),
+        params.get("clusters"), params.get("from_date"), params.get("to_date"),
+        now
+    ))
+    run_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return run_id
+
+def update_run_status(run_id: int, status: str, message: str = None):
+    """Update status, end_time and message for a grading run."""
+    conn = get_db()
+    end_time = datetime.now().isoformat() if status in ['COMPLETED', 'ERROR'] else None
+    conn.execute("""
+        UPDATE grading_run_log 
+        SET STATUS=?, MESSAGE=?, END_TIME=? 
+        WHERE RUN_ID=?
+    """, (status, message, end_time, run_id))
+    conn.commit()
+    conn.close()
+
+def background_grading_task(run_id: int, params: dict):
+    """Task executed in worker thread."""
+    try:
+        update_run_status(run_id, 'IN_PROGRESS')
+        result = run_grading(
+            dept=int(params.get("dept")),
+            class_=int(params.get("class")) if params.get("class") else None,
+            level=params.get("level", "class"),
+            subclass=int(params.get("subclass")) if params.get("subclass") else None,
+            store=int(params.get("store")) if params.get("store") else None,
+            country=params.get("country") or None,
+            n_clusters=int(params.get("clusters", 3)),
+            from_date=params.get("from_date"),
+            to_date=params.get("to_date")
+        )
+        msg = f"Completed. {result.get('inserts',0)} inserts, {result.get('updates',0)} updates."
+        update_run_status(run_id, 'COMPLETED', msg)
+    except Exception as e:
+        traceback.print_exc()
+        update_run_status(run_id, 'ERROR', str(e))
 
 
 # ─── Routes ──────────────────────────────────────────────────────────────────
@@ -401,21 +459,26 @@ def generate_grades():
         return jsonify({"error": "dept is required"}), 400
 
     try:
-        result = run_grading(
-            dept=int(dept),
-            class_=int(class_) if class_ else None,
-            level=level,
-            subclass=int(subclass) if subclass else None,
-            store=int(store) if store else None,
-            country=country or None,
-            n_clusters=int(clusters),
-            from_date=from_date,
-            to_date=to_date,
-        )
-        status_code = 200 if result["status"] == "success" else 422
-        return jsonify(result), status_code
+        # 1. Log the submission
+        run_id = log_grading_run(body)
+        
+        # 2. Dispatch to background thread
+        executor.submit(background_grading_task, run_id, body)
+        
+        return jsonify({"status": "submitted", "run_id": run_id}), 202
     except Exception as e:
         traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/grading-runs")
+def get_grading_runs():
+    """Fetch history of grading runs."""
+    try:
+        conn = get_db()
+        rows = conn.execute("SELECT * FROM grading_run_log ORDER BY RUN_ID DESC LIMIT 50").fetchall()
+        conn.close()
+        return jsonify({"data": rows_to_list(rows)})
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 

@@ -235,10 +235,11 @@ const sgState = {
   gradingLevel: 'class',
   filters: { dept: null, class: null, subclass: null, country: null, store: null },
   page: 1, pageSize: 50, totalRows: 0,
-  tableData: [], sortCol: null, sortDir: 'asc',
-  gradeCounts: {}, selectedClusters: 3, isGenerating: false,
+  selectedClusters: 3, isGenerating: false,
   selectedIds: new Set(),
-  editedGrades: {}
+  editedGrades: {},
+  runs: [],
+  runPollingInterval: null
 };
 
 // ── Cascading Class Filter ────────────────────────────────────────
@@ -547,8 +548,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') $('confirm-m
 async function runSgGrading() {
   if (sgState.isGenerating) return;
   sgState.isGenerating = true;
-  showSgProgress(true, 'Running K-means Clustering...', 'Preparing data');
-  animateSgBar(0, 30, 1000);
+  
   try {
     const payload = { 
       dept: parseInt(sgState.filters.dept, 10), 
@@ -561,16 +561,15 @@ async function runSgGrading() {
     if (sgState.filters.subclass) payload.subclass = parseInt(sgState.filters.subclass, 10);
     if (sgState.filters.country) payload.country = sgState.filters.country;
     if (sgState.filters.store) payload.store = parseInt(sgState.filters.store, 10);
-    animateSgBar(30, 80, 4000);
-    updateSgProgress('Computing grades...', 'K-means clustering in progress');
+
     const result = await apiFetch('/api/generate-grades', { method: 'POST', body: JSON.stringify(payload) });
-    animateSgBar(80, 100, 500);
-    await sleep(600);
-    showSgProgress(false);
-    showToast('success', 'Grading Complete!', `${result.inserts} inserted, ${result.updates} updated. ${result.rows_processed} stores processed.`);
-    await fetchSgGrades();
-  } catch (e) { showSgProgress(false); showToast('error', 'Grading Failed', e.message); }
-  finally { sgState.isGenerating = false; }
+    showToast('success', 'Run Submitted', `Grading run #${result.run_id} has been submitted to the background.`);
+    openRunStatusModal();
+  } catch (e) { 
+    showToast('error', 'Submission Failed', e.message); 
+  } finally { 
+    sgState.isGenerating = false; 
+  }
 }
 
 function showSgProgress(show, title = '', sub = '') {
@@ -587,6 +586,66 @@ function animateSgBar(from, to, dur) {
   requestAnimationFrame(step);
 }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ── Run Status Dashboard ───────────────────────────────────────────
+
+function openRunStatusModal() {
+  $('modal-run-status').classList.remove('hidden');
+  fetchRunStatus();
+  if (!sgState.runPollingInterval) {
+    sgState.runPollingInterval = setInterval(fetchRunStatus, 4000);
+  }
+}
+
+function closeRunStatusModal() {
+  $('modal-run-status').classList.add('hidden');
+  if (sgState.runPollingInterval) {
+    clearInterval(sgState.runPollingInterval);
+    sgState.runPollingInterval = null;
+  }
+}
+
+async function fetchRunStatus() {
+  try {
+    const data = await apiFetch('/api/grading-runs');
+    sgState.runs = data.data;
+    renderRunStatus();
+  } catch (e) {
+    console.error('Run status fetch failed', e);
+  }
+}
+
+function renderRunStatus() {
+  const body = $('run-status-body');
+  if (sgState.runs.length === 0) {
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted)">No grading runs found</td></tr>';
+    return;
+  }
+  
+  body.innerHTML = sgState.runs.map(run => {
+    const statusCls = `status-badge ${run.STATUS.toLowerCase()}`;
+    const date = run.START_TIME ? run.START_TIME.replace('T', ' ').split('.')[0] : '—';
+    const params = `Dept: ${run.DEPT}, Level: ${run.LEVEL}${run.CLASS ? `, Class: ${run.CLASS}` : ''}${run.SUBCLASS ? `, Sub: ${run.SUBCLASS}` : ''}${run.COUNTRY ? `, ${run.COUNTRY}` : ''}`;
+    const timeRef = (run.FROM_DATE || run.TO_DATE) ? `<br><span style="font-size:0.65rem;color:var(--text-muted)">Period: ${run.FROM_DATE || 'All'} to ${run.TO_DATE || 'All'}</span>` : '';
+    
+    let statusText = run.STATUS;
+    if (run.STATUS === 'IN_PROGRESS') statusText = 'In Progress';
+    if (run.STATUS === 'SUBMITTED') statusText = 'Submitted';
+    
+    return `<tr>
+      <td class="mono">#${run.RUN_ID}</td>
+      <td><span class="${statusCls}">${statusText}</span></td>
+      <td class="mono">${date}</td>
+      <td style="line-height:1.2"><strong>${params}</strong>${timeRef}</td>
+      <td style="font-size:0.7rem; color:${run.STATUS === 'ERROR' ? 'var(--error)' : 'var(--text-secondary)'}">${esc(run.MESSAGE || '—')}</td>
+    </tr>`;
+  }).join('');
+}
+
+$('btn-run-status').addEventListener('click', openRunStatusModal);
+$('run-status-close').addEventListener('click', closeRunStatusModal);
+$('run-status-done').addEventListener('click', closeRunStatusModal);
+$('run-status-refresh').addEventListener('click', fetchRunStatus);
 
 // ═══════════════════════════════════════════════════════════════════
 // ══════════════ PAGE 2: PRODUCT MASTER ══════════════════════════
