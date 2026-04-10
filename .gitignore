@@ -11,3 +11,6 @@ venv/
 .idea/
 .gemini/
 .DS_Store
+*.db-shm
+*.db-wal
+scratch/

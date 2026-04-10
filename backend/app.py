@@ -31,6 +31,7 @@ _grading_spec = importlib.util.spec_from_file_location(
 _grading_mod = importlib.util.module_from_spec(_grading_spec)
 _grading_spec.loader.exec_module(_grading_mod)
 run_grading = _grading_mod.run_grading
+update_store_grades = _grading_mod.update_store_grades
 
 # ─── App Setup ───────────────────────────────────────────────────────────────
 
@@ -99,6 +100,11 @@ def get_filters():
             "WHERE STORE_TYPE IS NOT NULL ORDER BY STORE_TYPE"
         ).fetchall())]
 
+        time_ids = [r["TIME_ID"] for r in rows_to_list(conn.execute(
+            "SELECT DISTINCT TIME_ID FROM sales_hist_fact "
+            "WHERE TIME_ID IS NOT NULL ORDER BY TIME_ID DESC"
+        ).fetchall())]
+
         conn.close()
         return jsonify({
             "depts":      depts,
@@ -107,6 +113,7 @@ def get_filters():
             "stores":     stores,
             "countries":  countries,
             "types":      types,
+            "time_ids":   time_ids,
         })
     except Exception as e:
         traceback.print_exc()
@@ -270,8 +277,8 @@ def get_store_grades():
     page    = request.args.get("page",     type=int, default=1)
     page_size = request.args.get("page_size", type=int, default=100)
 
-    if not dept or not class_:
-        return jsonify({"error": "dept and class are required"}), 400
+    if not dept:
+        return jsonify({"error": "dept is required"}), 400
 
     try:
         conn = get_db()
@@ -293,7 +300,8 @@ def get_store_grades():
                 sg.CREATE_DATETIME,
                 sg.CREATE_ID,
                 sg.LAST_UPDATE_DATETIME,
-                sg.LAST_UPDATE_ID
+                sg.LAST_UPDATE_ID,
+                sg.PUBLISH_STATUS
             FROM store_grade sg
             LEFT JOIN location_st_master l ON sg.LOCATION = l.STORE
             LEFT JOIN (
@@ -306,9 +314,13 @@ def get_store_grades():
                 SELECT DISTINCT DEPT, CLASS, SUBCLASS, SUB_NAME FROM product_option_dim
             ) p_sub ON sg.DEPT = p_sub.DEPT AND sg.CLASS = p_sub.CLASS
                     AND sg.SUBCLASS = p_sub.SUBCLASS
-            WHERE sg.DEPT = ? AND sg.CLASS = ?
+            WHERE sg.DEPT = ?
         """
-        params: list = [dept, class_]
+        params: list = [dept]
+
+        if class_ is not None:
+            sql += " AND sg.CLASS = ?"
+            params.append(class_)
 
         # Level filter logic: 
         # class level = SUBCLASS is NULL
@@ -382,19 +394,23 @@ def generate_grades():
     store   = body.get("store")
     country = body.get("country")
     clusters = body.get("clusters", 3)
+    from_date = body.get("from_date")
+    to_date   = body.get("to_date")
 
-    if not dept or not class_:
-        return jsonify({"error": "dept and class are required"}), 400
+    if not dept:
+        return jsonify({"error": "dept is required"}), 400
 
     try:
         result = run_grading(
             dept=int(dept),
-            class_=int(class_),
+            class_=int(class_) if class_ else None,
             level=level,
             subclass=int(subclass) if subclass else None,
             store=int(store) if store else None,
             country=country or None,
             n_clusters=int(clusters),
+            from_date=from_date,
+            to_date=to_date,
         )
         status_code = 200 if result["status"] == "success" else 422
         return jsonify(result), status_code
@@ -643,6 +659,24 @@ def get_sales_history():
         return jsonify({"error": str(e)}), 500
 
 # ─── Startup ─────────────────────────────────────────────────────────────────
+
+@app.route("/api/publish-grades", methods=["POST"])
+def publish_grades():
+    try:
+        data = request.json
+        updates = data.get("updates", [])
+        if not updates:
+            return jsonify({"error": "No updates provided"}), 400
+
+        conn = get_db()
+        count = update_store_grades(conn, updates)
+        conn.close()
+
+        return jsonify({"status": "success", "updated": count})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
     print("Initializing database (first run only)...")

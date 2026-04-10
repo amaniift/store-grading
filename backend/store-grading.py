@@ -29,6 +29,23 @@ from database import get_db
 CREATE_ID = "KMEAN_PY"
 
 
+def date_to_week_int(date_str):
+    """Converts YYYY-MM-DD string or YYYYWW integer string to YYYYWW integer format."""
+    if not date_str:
+        return None
+    date_str = str(date_str).strip()
+    # Check if it's already YYYYWW (6 digits)
+    if len(date_str) == 6 and date_str.isdigit():
+        return int(date_str)
+
+    try:
+        dt = datetime.strptime(date_str, "%Y-%m-%d")
+        year, week, _ = dt.isocalendar()
+        return year * 100 + week
+    except:
+        return None
+
+
 # ─── Feature Engineering ─────────────────────────────────────────────────────
 
 def build_features(df: pd.DataFrame, level: str, group_keys: list[str]) -> pd.DataFrame:
@@ -153,16 +170,38 @@ def upsert_grades(conn: sqlite3.Connection, rows: list[dict]) -> tuple[int, int]
     return inserts, updates
 
 
+def update_store_grades(conn, updates: list) -> int:
+    """Manual update of grades and publish status."""
+    from datetime import datetime
+    now = datetime.now().isoformat()
+    count = 0
+    for up in updates:
+        sg_id = up.get("store_grade_id")
+        grade = up.get("grade")
+        status = up.get("status", "Y")  # Default to 'Y' for publish
+        if not sg_id: continue
+        conn.execute("""
+            UPDATE store_grade
+            SET GRADE=?, PUBLISH_STATUS=?, LAST_UPDATE_DATETIME=?, LAST_UPDATE_ID=?
+            WHERE STORE_GRADE_ID=?
+        """, (grade, status, now, CREATE_ID, sg_id))
+        count += 1
+    conn.commit()
+    return count
+
+
 # ─── Main Grading Function ───────────────────────────────────────────────────
 
 def run_grading(
     dept: int,
-    class_: int,
+    class_ = None,
     level: str = "class",
-    subclass: int | None = None,
-    store: int | None = None,
-    country: str | None = None,
-    n_clusters: int = 3,
+    subclass = None,
+    store = None,
+    country = None,
+    n_clusters = 3,
+    from_date = None,
+    to_date = None,
 ) -> dict:
     """
     Core grading function. Called by both CLI and Flask API.
@@ -170,12 +209,14 @@ def run_grading(
     Parameters
     ----------
     dept      : mandatory
-    class_    : mandatory
+    class_    : optional filter (if None, grades all classes in dept)
     level     : 'class' or 'subclass'
     subclass  : optional filter (subclass_level only uses this as an additional filter)
     store     : optional store/location filter
     country   : optional AREA_NAME filter
     n_clusters: number of K-means clusters (default 3)
+    from_date : optional start date (YYYY-MM-DD)
+    to_date   : optional end date (YYYY-MM-DD)
 
     Returns a summary dict.
     """
@@ -205,9 +246,22 @@ def run_grading(
         JOIN product_option_dim p ON s.OPTION_ID = p.OPTION_ID
         LEFT JOIN location_st_master l ON s.STORE = l.STORE
         WHERE p.DEPT = ?
-          AND p.CLASS = ?
     """
-    params: list = [dept, class_]
+    params: list = [dept]
+
+    if class_ is not None:
+        sql += " AND p.CLASS = ?"
+        params.append(class_)
+
+    from_week = date_to_week_int(from_date)
+    to_week = date_to_week_int(to_date)
+
+    if from_week:
+        sql += " AND s.TIME_ID >= ?"
+        params.append(from_week)
+    if to_week:
+        sql += " AND s.TIME_ID <= ?"
+        params.append(to_week)
 
     if level == "subclass" and subclass is not None:
         sql += " AND p.SUBCLASS = ?"
@@ -225,8 +279,9 @@ def run_grading(
 
     if df.empty:
         conn.close()
-        return {"status": "no_data", "inserts": 0, "updates": 0,
-                "message": f"No sales data found for dept={dept}, class={class_}"}
+        msg = f"No sales data found for dept={dept}"
+        if class_: msg += f", class={class_}"
+        return {"status": "no_data", "inserts": 0, "updates": 0, "message": msg}
 
     # ── Determine grouping keys by level ─────────────────────────────────────
     if level == "class":
@@ -243,21 +298,44 @@ def run_grading(
                     "message": "No subclass data found for given filters"}
 
     # ── Aggregate + cluster ──────────────────────────────────────────────────
-    if level == "subclass" and subclass is None:
-        # ── "All Subclasses" mode: run K-means independently per subclass ──
-        # Each subclass competes only within itself, ensuring grades are
-        # always spread relative to stores in that subclass, never across
-        # the combined pool of all subclasses.
-        all_subclasses = df["SUBCLASS"].dropna().unique()
+    # We loop if we are in a batch mode:
+    # 1. All Classes (irrespective of level)
+    # 2. All Subclasses (with a fixed class)
+    
+    batch_mode = False
+    batch_cols = []
+    
+    if class_ is None:
+        batch_mode = True
+        batch_cols = ["CLASS"]
+        if level == "subclass" and subclass is None:
+            batch_cols = ["CLASS", "SUBCLASS"]
+    elif level == "subclass" and subclass is None:
+        batch_mode = True
+        batch_cols = ["CLASS", "SUBCLASS"]
+    
+    if batch_mode:
+        # Determine unique scopes to grade independently
+        df_scopes = df[batch_cols].dropna().drop_duplicates()
         graded_parts = []
-        for sc in all_subclasses:
-            sc_df = df[df["SUBCLASS"] == sc]
-            agg = build_features(sc_df, level, group_keys)
-            graded_sc = assign_grades(agg, n_clusters=n_clusters)
-            graded_parts.append(graded_sc)
+        for _, scope_row in df_scopes.iterrows():
+            # Filter df for this specific scope
+            mask = True
+            for col in batch_cols:
+                mask = mask & (df[col] == scope_row[col])
+            
+            scope_df = df[mask]
+            if scope_df.empty: continue
+            
+            agg = build_features(scope_df, level, group_keys)
+            if agg.empty: continue
+            
+            graded_scope = assign_grades(agg, n_clusters=n_clusters)
+            graded_parts.append(graded_scope)
+            
         graded = pd.concat(graded_parts, ignore_index=True) if graded_parts else pd.DataFrame()
     else:
-        # Single subclass (or class-level): grade as one batch
+        # Single scope (fixed class, and optionally fixed subclass)
         agg = build_features(df, level, group_keys)
         graded = assign_grades(agg, n_clusters=n_clusters)
 

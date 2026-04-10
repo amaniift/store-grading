@@ -197,7 +197,8 @@ CREATE TABLE IF NOT EXISTS store_grade (
     CREATE_DATETIME       TEXT,
     CREATE_ID             TEXT,
     LAST_UPDATE_DATETIME  TEXT,
-    LAST_UPDATE_ID        TEXT
+    LAST_UPDATE_ID        TEXT,
+    PUBLISH_STATUS        TEXT DEFAULT 'N'
 )
 """
 
@@ -265,6 +266,13 @@ def init_db(force_reload: bool = False) -> None:
     print("Creating tables...")
     for ddl in [DDL_SALES_HIST_FACT, DDL_PRODUCT_OPTION_DIM, DDL_LOCATION_ST_MASTER, DDL_STORE_GRADE]:
         cur.execute(ddl)
+    
+    # Migration for PUBLISH_STATUS if it doesn't exist
+    try:
+        cur.execute("ALTER TABLE store_grade ADD COLUMN PUBLISH_STATUS TEXT DEFAULT 'N'")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+        
     conn.commit()
 
     for table, csv_file in [

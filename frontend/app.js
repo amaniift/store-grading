@@ -178,6 +178,27 @@ function populateSharedFilters() {
   const shStoreSel = $('sh-store-select');
   allFilters.stores.forEach(s => shStoreSel.appendChild(new Option(s.STORE_NAME || s.STORE, s.STORE)));
 
+  const shDateFrom = $('sh-date-from');
+  const shDateTo = $('sh-date-to');
+  const genDateFrom = $('generate-date-from');
+  const genDateTo = $('generate-date-to');
+
+  if (shDateFrom && shDateTo) {
+    shDateFrom.innerHTML = '<option value="">All Weeks</option>';
+    shDateTo.innerHTML = '<option value="">All Weeks</option>';
+  }
+  if (genDateFrom && genDateTo) {
+    genDateFrom.innerHTML = '<option value="">All Weeks</option>';
+    genDateTo.innerHTML = '<option value="">All Weeks</option>';
+  }
+
+  (allFilters.time_ids || []).forEach(tid => {
+    if (shDateFrom) shDateFrom.appendChild(new Option(tid, tid));
+    if (shDateTo) shDateTo.appendChild(new Option(tid, tid));
+    if (genDateFrom) genDateFrom.appendChild(new Option(tid, tid));
+    if (genDateTo) genDateTo.appendChild(new Option(tid, tid));
+  });
+
   // ── Admin selects ──────────────────────────────────────────────
   const adminDeptSel = $('admin-dept-select');
   if (adminDeptSel) {
@@ -216,16 +237,18 @@ const sgState = {
   page: 1, pageSize: 50, totalRows: 0,
   tableData: [], sortCol: null, sortDir: 'asc',
   gradeCounts: {}, selectedClusters: 3, isGenerating: false,
+  selectedIds: new Set(),
+  editedGrades: {}
 };
 
 // ── Cascading Class Filter ────────────────────────────────────────
 function populateSgClasses(dept) {
   const sel = $('class-select');
-  sel.innerHTML = '<option value="">Select Class...</option>';
-  sel.disabled = true;
+  sel.innerHTML = '<option value="">All Classes</option>';
+  sel.disabled = !dept;
+  if (!dept) return;
   const filtered = allFilters.classes.filter(c => c.DEPT == dept);
   filtered.forEach(c => sel.appendChild(new Option(c.CLASS_NAME ? `${c.CLASS} — ${c.CLASS_NAME}` : `${c.CLASS}`, c.CLASS)));
-  sel.disabled = filtered.length === 0;
 }
 
 function populateSgSubclasses(dept, cls) {
@@ -258,7 +281,7 @@ $('country-select').addEventListener('change', () => { sgState.filters.country =
 $('store-select').addEventListener('change', () => { sgState.filters.store = $('store-select').value || null; });
 
 function updateSgButtons() {
-  const ok = !!(sgState.filters.dept && sgState.filters.class);
+  const ok = !!sgState.filters.dept;
   $('btn-search').disabled = !ok;
   $('btn-generate').disabled = !ok;
 }
@@ -286,7 +309,7 @@ function updateSgButtons() {
 $('btn-search').addEventListener('click', () => { sgState.page = 1; fetchSgGrades(); });
 
 async function fetchSgGrades() {
-  if (!sgState.filters.dept || !sgState.filters.class) return;
+  if (!sgState.filters.dept) return;
   const params = new URLSearchParams({ dept: sgState.filters.dept, class: sgState.filters.class, level: sgState.gradingLevel, page: sgState.page, page_size: sgState.pageSize });
   if (sgState.filters.subclass) params.set('subclass', sgState.filters.subclass);
   if (sgState.filters.country) params.set('country', sgState.filters.country);
@@ -301,7 +324,7 @@ async function fetchSgGrades() {
     renderSgTable(); renderSgPagination(); renderSgStats();
     $('btn-export').disabled = data.data.length === 0;
   } catch (e) { showToast('error', 'Search Failed', e.message); }
-  finally { $('btn-search').disabled = !(sgState.filters.dept && sgState.filters.class); }
+  finally { $('btn-search').disabled = !sgState.filters.dept; }
 }
 
 // ── Table Render ──────────────────────────────────────────────────
@@ -335,19 +358,51 @@ function renderSgTable() {
   $('data-table').classList.remove('hidden');
   $('grid-count-label').textContent = `Showing ${start}–${end} of ${total} store grades`;
 
-  $('table-body').innerHTML = data.map(row => `<tr>
-    <td class="mono">${row.STORE_GRADE_ID ?? '—'}</td>
-    <td><strong>${esc(row.BRAND || '—')}</strong></td>
-    <td class="mono">${row.LOCATION ?? '—'}</td>
-    <td>${esc(row.STORE_NAME || '—')}</td>
-    <td>${esc(row.COUNTRY || '—')}</td>
-    <td class="mono">${row.DEPT ?? '—'}${row.DEPT_NAME ? `<br><span style="font-size:0.68rem;color:var(--text-muted)">${esc(row.DEPT_NAME)}</span>` : ''}</td>
-    <td class="mono">${row.CLASS ?? '—'}${row.CLASS_NAME ? `<br><span style="font-size:0.68rem;color:var(--text-muted)">${esc(row.CLASS_NAME)}</span>` : ''}</td>
-    <td class="mono">${row.SUBCLASS != null ? row.SUBCLASS : '<span class="text-dim">—</span>'}${row.SUB_NAME ? `<br><span style="font-size:0.68rem;color:var(--text-muted)">${esc(row.SUB_NAME)}</span>` : ''}</td>
-    <td>${gradeBadge(row.GRADE)}</td>
-    <td class="mono" style="font-size:0.7rem">${esc(row.CREATE_DATETIME ? row.CREATE_DATETIME.split(' ')[0] : '—')}</td>
-    <td class="mono" style="font-size:0.7rem">${esc(row.LAST_UPDATE_DATETIME ? row.LAST_UPDATE_DATETIME.split(' ')[0] : '—')}</td>
-  </tr>`).join('');
+  $('table-body').innerHTML = data.map(row => {
+    const isSelected = sgState.selectedIds.has(row.STORE_GRADE_ID);
+    const grade = sgState.editedGrades[row.STORE_GRADE_ID] ?? row.GRADE;
+    const isPublished = row.PUBLISH_STATUS === 'Y';
+    const statusBadge = isPublished ? '<span class="status-badge published">Published</span>' : '<span class="status-badge draft">Draft</span>';
+    
+    return `<tr>
+      <td class="select-col"><input type="checkbox" class="row-checkbox" data-id="${row.STORE_GRADE_ID}" ${isSelected ? 'checked' : ''} /></td>
+      <td class="mono">${row.STORE_GRADE_ID ?? '—'}</td>
+      <td><strong>${esc(row.BRAND || '—')}</strong></td>
+      <td class="mono">${row.LOCATION ?? '—'}</td>
+      <td>${esc(row.STORE_NAME || '—')}</td>
+      <td>${esc(row.COUNTRY || '—')}</td>
+      <td class="mono">${row.DEPT ?? '—'}${row.DEPT_NAME ? `<br><span style="font-size:0.68rem;color:var(--text-muted)">${esc(row.DEPT_NAME)}</span>` : ''}</td>
+      <td class="mono">${row.CLASS ?? '—'}${row.CLASS_NAME ? `<br><span style="font-size:0.68rem;color:var(--text-muted)">${esc(row.CLASS_NAME)}</span>` : ''}</td>
+      <td class="mono">${row.SUBCLASS != null ? row.SUBCLASS : '<span class="text-dim">—</span>'}${row.SUB_NAME ? `<br><span style="font-size:0.68rem;color:var(--text-muted)">${esc(row.SUB_NAME)}</span>` : ''}</td>
+      <td><span class="editable-cell" contenteditable="true" data-id="${row.STORE_GRADE_ID}">${esc(grade)}</span></td>
+      <td>${statusBadge}</td>
+      <td class="mono" style="font-size:0.7rem">${esc(row.CREATE_DATETIME ? row.CREATE_DATETIME.split(' ')[0] : '—')}</td>
+      <td class="mono" style="font-size:0.7rem">${esc(row.LAST_UPDATE_DATETIME ? row.LAST_UPDATE_DATETIME.split(' ')[0] : '—')}</td>
+    </tr>`;
+  }).join('');
+
+  // Attach dynamic event listeners for the table
+  document.querySelectorAll('.row-checkbox').forEach(cb => {
+    cb.addEventListener('change', e => {
+      const id = parseInt(e.target.dataset.id);
+      if (e.target.checked) sgState.selectedIds.add(id);
+      else sgState.selectedIds.delete(id);
+      updatePublishButtonState();
+    });
+  });
+
+  document.querySelectorAll('.editable-cell').forEach(cell => {
+    cell.addEventListener('input', e => {
+      const id = parseInt(e.target.dataset.id);
+      sgState.editedGrades[id] = e.target.textContent.trim();
+    });
+  });
+  
+  updatePublishButtonState();
+}
+
+function updatePublishButtonState() {
+  $('btn-publish-selected').disabled = sgState.selectedIds.size === 0;
 }
 
 function renderSgStats() {
@@ -369,6 +424,45 @@ $('btn-prev').addEventListener('click', () => { if (sgState.page > 1) { sgState.
 $('btn-next').addEventListener('click', () => {
   const tp = Math.ceil(sgState.totalRows / sgState.pageSize);
   if (sgState.page < tp) { sgState.page++; fetchSgGrades(); }
+});
+
+// ── Selection & Publishing ──────────────────────────────────────────
+
+$('sg-select-all').addEventListener('change', e => {
+  const checkboxes = document.querySelectorAll('.row-checkbox');
+  checkboxes.forEach(cb => {
+    cb.checked = e.target.checked;
+    const id = parseInt(cb.dataset.id);
+    if (e.target.checked) sgState.selectedIds.add(id);
+    else sgState.selectedIds.delete(id);
+  });
+  updatePublishButtonState();
+});
+
+$('btn-publish-selected').addEventListener('click', async () => {
+  if (sgState.selectedIds.size === 0) return;
+
+  const updates = Array.from(sgState.selectedIds).map(id => ({
+    store_grade_id: id,
+    grade: sgState.editedGrades[id] ?? sgState.tableData.find(r => r.STORE_GRADE_ID === id)?.GRADE,
+    status: 'Y'
+  }));
+
+  $('btn-publish-selected').disabled = true;
+  try {
+    const res = await apiFetch('/api/publish-grades', {
+      method: 'POST',
+      body: JSON.stringify({ updates })
+    });
+    showToast('success', 'Grades Published', `Successfully published ${res.updated} store grades.`);
+    sgState.selectedIds.clear();
+    $('sg-select-all').checked = false;
+    fetchSgGrades();
+  } catch (e) {
+    showToast('error', 'Publish Failed', e.message);
+  } finally {
+    updatePublishButtonState();
+  }
 });
 
 // ── Sorting ───────────────────────────────────────────────────────
@@ -456,7 +550,14 @@ async function runSgGrading() {
   showSgProgress(true, 'Running K-means Clustering...', 'Preparing data');
   animateSgBar(0, 30, 1000);
   try {
-    const payload = { dept: parseInt(sgState.filters.dept, 10), class: parseInt(sgState.filters.class, 10), level: sgState.gradingLevel, clusters: sgState.selectedClusters };
+    const payload = { 
+      dept: parseInt(sgState.filters.dept, 10), 
+      class: parseInt(sgState.filters.class, 10), 
+      level: sgState.gradingLevel, 
+      clusters: sgState.selectedClusters,
+      from_date: $('generate-date-from').value || null,
+      to_date: $('generate-date-to').value || null
+    };
     if (sgState.filters.subclass) payload.subclass = parseInt(sgState.filters.subclass, 10);
     if (sgState.filters.country) payload.country = sgState.filters.country;
     if (sgState.filters.store) payload.store = parseInt(sgState.filters.store, 10);
