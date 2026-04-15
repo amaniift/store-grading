@@ -1197,12 +1197,268 @@ if ($('admin-delete-confirm')) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// ══════════════ PAGE: FORECASTS ══════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+
+let forecastChartInstance = null;
+
+async function initForecastFilters() {
+  const countrySel = $('fc-country-select');
+  countrySel.innerHTML = '<option value="">All Countries</option>';
+  allFilters.countries.forEach(c => countrySel.appendChild(new Option(c.AREA_NAME, c.AREA_NAME)));
+
+  const deptSel = $('fc-dept-select');
+  deptSel.innerHTML = '<option value="">All Departments</option>';
+  allFilters.depts.forEach(d => deptSel.appendChild(new Option(d.DEPT_NAME ? `${d.DEPT} — ${d.DEPT_NAME}` : `${d.DEPT}`, d.DEPT)));
+  
+  updateFcStoreList();
+}
+
+function updateFcStoreList() {
+  const country = $('fc-country-select').value;
+  const list = $('fc-store-list');
+  list.innerHTML = '';
+  
+  allFilters.stores
+    .filter(s => !country || s.COUNTRY === country)
+    .forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = `${s.STORE} — ${s.STORE_NAME}`;
+      list.appendChild(opt);
+    });
+}
+
+$('fc-country-select').addEventListener('change', () => {
+  $('fc-store-search').value = '';
+  updateFcStoreList();
+});
+
+// Cascading filters for Forecasts
+$('fc-dept-select').addEventListener('change', () => {
+  const dept = $('fc-dept-select').value;
+  const classSel = $('fc-class-select');
+  classSel.innerHTML = '<option value="">All Classes</option>';
+  classSel.disabled = !dept;
+  if (dept) allFilters.classes.filter(c => c.DEPT == dept).forEach(c => classSel.appendChild(new Option(c.CLASS_NAME ? `${c.CLASS} — ${c.CLASS_NAME}` : `${c.CLASS}`, c.CLASS)));
+  
+  $('fc-subclass-select').innerHTML = '<option value="">All Subclasses</option>';
+  $('fc-subclass-select').disabled = true;
+  $('fc-item-search').value = '';
+  $('fc-item-list').innerHTML = '';
+  $('fc-item-search').disabled = true;
+});
+
+$('fc-class-select').addEventListener('change', () => {
+  const dept = $('fc-dept-select').value, cls = $('fc-class-select').value;
+  const subSel = $('fc-subclass-select');
+  subSel.innerHTML = '<option value="">All Subclasses</option>';
+  subSel.disabled = !cls;
+  if (cls) allFilters.subclasses.filter(s => s.DEPT == dept && s.CLASS == cls).forEach(s => subSel.appendChild(new Option(s.SUB_NAME ? `${s.SUBCLASS} — ${s.SUB_NAME}` : `${s.SUBCLASS}`, s.SUBCLASS)));
+  
+  $('fc-item-search').value = '';
+  $('fc-item-list').innerHTML = '';
+  $('fc-item-search').disabled = !cls;
+  if (cls) fetchFcItems(dept, cls);
+});
+
+$('fc-subclass-select').addEventListener('change', () => {
+    const dept = $('fc-dept-select').value, cls = $('fc-class-select').value, sub = $('fc-subclass-select').value;
+    fetchFcItems(dept, cls, sub);
+});
+
+async function fetchFcItems(dept, cls, sub = null) {
+    const params = new URLSearchParams({ page: 1, page_size: 200, dept, class: cls });
+    if (sub) params.set('subclass', sub);
+    try {
+        const res = await apiFetch(`/api/product-master?${params}`);
+        const list = $('fc-item-list');
+        list.innerHTML = '';
+        const uniqueOptions = [...new Set(res.data.map(d => d.OPTION_ID))];
+        uniqueOptions.forEach(opt => {
+          const o = document.createElement('option');
+          o.value = opt;
+          list.appendChild(o);
+        });
+    } catch (e) {
+        console.error("Failed to load SKUs for forecast", e);
+    }
+}
+
+// Helper to resolve parameters for both Search and Forecast
+function getFcParams() {
+  const dept = $('fc-dept-select').value;
+  const cls = $('fc-class-select').value;
+  const sub = $('fc-subclass-select').value;
+  const sku = $('fc-item-search').value.trim();
+  const storeLabel = $('fc-store-search').value.trim();
+  const store_id = storeLabel.split(' — ')[0].trim();
+  const model = $('fc-model-select').value;
+
+  let level = 'sku', item_id = sku;
+  if (!sku || sku === 'All Items (Aggregated)') {
+      if (sub) { level = 'subclass'; item_id = sub; }
+      else if (cls) { level = 'class'; item_id = cls; }
+      else if (dept) { level = 'dept'; item_id = dept; }
+  }
+  return { level, item_id, store_id, model };
+}
+
+$('btn-fc-search').addEventListener('click', async () => {
+  const { level, item_id, store_id } = getFcParams();
+  if (!store_id || !item_id) {
+    showToast('error', 'Validation Error', 'Please select a Scope and a Store.');
+    return;
+  }
+  
+  $('btn-fc-search').disabled = true;
+  $('btn-fc-search').innerText = 'Searching...';
+  try {
+    const result = await apiFetch('/api/forecast', {
+        method: 'POST',
+        body: JSON.stringify({ level, item_id, store_id, force_compute: false })
+    });
+    
+    renderForecastChart(result);
+    renderForecastGrid(result);
+    $('forecast-graph-title').textContent = `Sales Forecast View (${level.toUpperCase()})`;
+  } catch (e) {
+    showToast('error', 'Search Failed', e.message);
+  } finally {
+    $('btn-fc-search').disabled = false;
+    $('btn-fc-search').innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      Search
+    `;
+  }
+});
+
+$('btn-run-forecast').addEventListener('click', async () => {
+    const { level, item_id, store_id, model } = getFcParams();
+    if (!store_id || !item_id) {
+        showToast('error', 'Validation Error', 'Please select at least a scope and a Store.');
+        return;
+    }
+
+    $('btn-run-forecast').disabled = true;
+    $('btn-run-forecast').innerText = 'Recalculating...';
+
+    try {
+        const result = await apiFetch('/api/forecast', {
+            method: 'POST',
+            body: JSON.stringify({ level, item_id, store_id, model, force_compute: true })
+        });
+        
+        renderForecastChart(result);
+        renderForecastGrid(result);
+        $('forecast-graph-title').textContent = `Live Forecast (${model.toUpperCase().replace('_', ' ')})`;
+    } catch (e) {
+        showToast('error', 'Forecast Failed', e.message);
+    } finally {
+        $('btn-run-forecast').disabled = false;
+        $('btn-run-forecast').innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+          Update Forecast
+        `;
+    }
+});
+
+function renderForecastGrid(data) {
+  const tbody = $('forecast-data-body');
+  if (!data.historical_dates || data.historical_dates.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted)">No data found</td></tr>';
+    return;
+  }
+
+  let html = '';
+  // Historical Rows
+  data.historical_dates.forEach((date, i) => {
+    html += `<tr>
+      <td class="mono">${date}</td>
+      <td><span class="status-badge submitted" style="color:var(--text-muted);background:rgba(255,255,255,0.05)">Actual</span></td>
+      <td style="color:var(--text-muted); font-size: 0.85rem">None (History)</td>
+      <td class="mono" style="text-align:right">${fmt(data.historical_sales[i])}</td>
+    </tr>`;
+  });
+
+  // Forecast Rows
+  if (data.forecast_dates && data.forecast_dates.length > 0) {
+    const modelName = data.model_used === 'exponential_smoothing' ? 'Holt-Winters' : 'ARIMA';
+    data.forecast_dates.forEach((date, i) => {
+      html += `<tr>
+        <td class="mono">${date}</td>
+        <td><span class="status-badge completed">Forecast</span></td>
+        <td style="color:var(--accent-light); font-size: 0.85rem">${modelName}</td>
+        <td class="mono" style="text-align:right; font-weight: 600; color: var(--accent-light)">${fmt(data.forecast_sales[i])}</td>
+      </tr>`;
+    });
+  }
+
+  tbody.innerHTML = html;
+}
+
+function renderForecastChart(data) {
+    const ctx = document.getElementById('forecastChart').getContext('2d');
+    
+    if (forecastChartInstance) {
+        forecastChartInstance.destroy();
+    }
+
+    const labels = [...data.historical_dates, ...data.forecast_dates];
+    const historicalData = data.historical_sales.concat(Array(data.forecast_sales.length).fill(null));
+    const forecastData = Array(data.historical_sales.length - 1).fill(null).concat([data.historical_sales[data.historical_sales.length - 1]], data.forecast_sales);
+
+    forecastChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Historical Sales',
+                    data: historicalData,
+                    borderColor: 'rgba(99, 102, 241, 1)', 
+                    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                    fill: true,
+                    tension: 0.1
+                },
+                {
+                    label: '52-Week Forecast',
+                    data: forecastData,
+                    borderColor: 'rgba(34, 197, 94, 1)',
+                    borderDash: [5, 5],
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    fill: false,
+                    tension: 0.1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            scales: {
+                y: { beginAtZero: true, title: { display: true, text: 'Sales Units' } },
+                x: { title: { display: true, text: 'Time Period (YYYYWW)' } }
+            }
+        }
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════════
 
 async function init() {
   await checkHealth();
   await loadFilters();
+  await initForecastFilters();
 }
 
 init();
+

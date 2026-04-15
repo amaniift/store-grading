@@ -21,10 +21,9 @@ from datetime import datetime
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
-from database import get_db, init_db
-
-# Import the grading function (store-grading.py uses hyphen, so we use importlib)
 import importlib.util
+import pandas as pd
+from database import get_db, init_db
 
 _grading_spec = importlib.util.spec_from_file_location(
     "store_grading_engine",
@@ -739,6 +738,111 @@ def publish_grades():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/forecast", methods=["POST"])
+def generate_forecast():
+    body = request.get_json()
+    level = body.get("level", "sku")
+    item_id = str(body.get("item_id"))
+    store_id = body.get("store_id")
+    model_type = body.get("model", "exponential_smoothing")
+    force_compute = body.get("force_compute", False)
+    
+    if not item_id or not store_id:
+        return jsonify({"error": "Selection ID and Store ID are required."}), 400
+
+    conn = get_db()
+    
+    # Map level to database column for filtering
+    level_map = {
+        "dept": "p.DEPT",
+        "class": "p.CLASS",
+        "subclass": "p.SUBCLASS",
+        "sku": "p.OPTION_ID"
+    }
+    filter_col = level_map.get(level, "p.OPTION_ID")
+
+    # 1. OPTIONAL: Check DB for pre-computed forecast (SKU level only for now)
+    if level == "sku" and not force_compute:
+        cached = conn.execute(
+            "SELECT TIME_ID, UNITS, MODEL_USED FROM forecasts_fact WHERE OPTION_ID = ? AND STORE = ? ORDER BY TIME_ID",
+            (item_id, store_id)
+        ).fetchall()
+        if cached:
+            # Still fetch history for the chart
+            hist_query = f"SELECT s.TIME_ID, SUM(s.REGULAR_SLS_UNITS + s.PROMO_SLS_UNITS + s.MRKDWN_SLS_UNITS) as TOTAL_SALES FROM sales_hist_fact s WHERE s.OPTION_ID = ? AND s.STORE = ? GROUP BY s.TIME_ID ORDER BY s.TIME_ID ASC"
+            hist_df = pd.read_sql_query(hist_query, conn, params=(item_id, store_id))
+            conn.close()
+            return jsonify({
+                "status": "success",
+                "model_used": cached[0]["MODEL_USED"],
+                "historical_dates": hist_df["TIME_ID"].astype(str).tolist(),
+                "historical_sales": hist_df["TOTAL_SALES"].tolist(),
+                "forecast_dates": [str(c["TIME_ID"]) for c in cached],
+                "forecast_sales": [c["UNITS"] for c in cached]
+            })
+
+    # 2. RUN LIVE CALCULATION
+    # Aggregated query: join sales → product to filter by hierarchy
+    query = f"""
+        SELECT s.TIME_ID, SUM(s.REGULAR_SLS_UNITS + s.PROMO_SLS_UNITS + s.MRKDWN_SLS_UNITS) as TOTAL_SALES
+        FROM sales_hist_fact s
+        JOIN product_option_dim p ON s.OPTION_ID = p.OPTION_ID
+        WHERE {filter_col} = ? AND s.STORE = ?
+        GROUP BY s.TIME_ID
+        ORDER BY s.TIME_ID ASC
+    """
+    df = pd.read_sql_query(query, conn, params=(item_id, store_id))
+
+    if df.empty or len(df) < 5:
+        conn.close()
+        return jsonify({"error": "Insufficient historical data for forecasting."}), 400
+
+    series = df["TOTAL_SALES"].values
+    last_time_id = df["TIME_ID"].iloc[-1]
+    forecast_weeks = 52
+
+    try:
+        from statsmodels.tsa.holtwinters import ExponentialSmoothing
+        from statsmodels.tsa.arima.model import ARIMA
+        
+        if model_type == "exponential_smoothing":
+            model = ExponentialSmoothing(series, trend="add", seasonal=None, initialization_method="estimated")
+            fit_model = model.fit()
+            forecast_values = fit_model.forecast(forecast_weeks).tolist()
+        elif model_type == "arima":
+            model = ARIMA(series, order=(1, 1, 1))
+            fit_model = model.fit()
+            forecast_values = fit_model.forecast(forecast_weeks).tolist()
+            
+        else:
+            return jsonify({"error": "Unknown model selected."}), 400
+            
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": f"Model failed to calculate: {str(e)}"}), 500
+
+    # Generate future TIME_IDs (simplified extrapolation for the next 52 weeks)
+    year = int(str(last_time_id)[:4])
+    week = int(str(last_time_id)[4:])
+    
+    future_labels = []
+    for _ in range(forecast_weeks):
+        week += 1
+        if week > 52:
+            week = 1
+            year += 1
+        future_labels.append(f"{year}{week:02d}")
+
+    return jsonify({
+        "status": "success",
+        "model_used": model_type,
+        "historical_dates": df["TIME_ID"].astype(str).tolist(),
+        "historical_sales": df["TOTAL_SALES"].tolist(),
+        "forecast_dates": future_labels,
+        "forecast_sales": [max(0, round(float(v), 2)) for v in forecast_values]
+    })
 
 
 if __name__ == "__main__":
