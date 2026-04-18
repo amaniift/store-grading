@@ -1220,7 +1220,7 @@ function updateFcStoreList() {
   list.innerHTML = '';
   
   allFilters.stores
-    .filter(s => !country || s.COUNTRY === country)
+    .filter(s => !country || s.AREA_NAME === country)
     .forEach(s => {
       const opt = document.createElement('option');
       opt.value = `${s.STORE} — ${s.STORE_NAME}`;
@@ -1286,27 +1286,49 @@ async function fetchFcItems(dept, cls, sub = null) {
 
 // Helper to resolve parameters for both Search and Forecast
 function getFcParams() {
-  const dept = $('fc-dept-select').value;
-  const cls = $('fc-class-select').value;
-  const sub = $('fc-subclass-select').value;
-  const sku = $('fc-item-search').value.trim();
+  const dept = $('fc-dept-select').value || null;
+  const cls = $('fc-class-select').value || null;
+  const sub = $('fc-subclass-select').value || null;
+  const sku = $('fc-item-search').value.trim() || null;
   const storeLabel = $('fc-store-search').value.trim();
-  const store_id = storeLabel.split(' — ')[0].trim();
+  const store_id = storeLabel ? storeLabel.split(' — ')[0].trim() : null;
+  const country = $('fc-country-select').value || null;
   const model = $('fc-model-select').value;
 
-  let level = 'sku', item_id = sku;
-  if (!sku || sku === 'All Items (Aggregated)') {
-      if (sub) { level = 'subclass'; item_id = sub; }
-      else if (cls) { level = 'class'; item_id = cls; }
-      else if (dept) { level = 'dept'; item_id = dept; }
+  return { dept, cls, sub, sku, store_id, country, model };
+}
+
+function describeFcScope(params) {
+  const parts = [];
+  if (params.dept) {
+    const opt = $('fc-dept-select').options[$('fc-dept-select').selectedIndex];
+    parts.push(opt ? opt.text : `Dept ${params.dept}`);
   }
-  return { level, item_id, store_id, model };
+  if (params.cls) {
+    const opt = $('fc-class-select').options[$('fc-class-select').selectedIndex];
+    parts.push(opt ? opt.text : `Class ${params.cls}`);
+  }
+  if (params.sub) {
+    const opt = $('fc-subclass-select').options[$('fc-subclass-select').selectedIndex];
+    parts.push(opt ? opt.text : `Sub ${params.sub}`);
+  }
+  if (params.sku) parts.push(`SKU: ${params.sku}`);
+
+  const locParts = [];
+  if (params.store_id) {
+    locParts.push($('fc-store-search').value.trim());
+  } else if (params.country) {
+    locParts.push(params.country);
+  } else {
+    locParts.push('All Stores');
+  }
+  return parts.join(' › ') + ' — ' + locParts.join(', ');
 }
 
 $('btn-fc-search').addEventListener('click', async () => {
-  const { level, item_id, store_id } = getFcParams();
-  if (!store_id || !item_id) {
-    showToast('error', 'Validation Error', 'Please select a Scope and a Store.');
+  const params = getFcParams();
+  if (!params.dept) {
+    showToast('error', 'Validation Error', 'Please select at least a Department.');
     return;
   }
   
@@ -1315,12 +1337,20 @@ $('btn-fc-search').addEventListener('click', async () => {
   try {
     const result = await apiFetch('/api/forecast', {
         method: 'POST',
-        body: JSON.stringify({ level, item_id, store_id, force_compute: false })
+        body: JSON.stringify({
+          dept: params.dept,
+          class: params.cls,
+          subclass: params.sub,
+          item_id: params.sku,
+          store_id: params.store_id,
+          country: params.country,
+          force_compute: false
+        })
     });
     
     renderForecastChart(result);
     renderForecastGrid(result);
-    $('forecast-graph-title').textContent = `Sales Forecast View (${level.toUpperCase()})`;
+    $('forecast-graph-title').textContent = `Sales Forecast — ${describeFcScope(params)}`;
   } catch (e) {
     showToast('error', 'Search Failed', e.message);
   } finally {
@@ -1336,9 +1366,9 @@ $('btn-fc-search').addEventListener('click', async () => {
 });
 
 $('btn-run-forecast').addEventListener('click', async () => {
-    const { level, item_id, store_id, model } = getFcParams();
-    if (!store_id || !item_id) {
-        showToast('error', 'Validation Error', 'Please select at least a scope and a Store.');
+    const params = getFcParams();
+    if (!params.dept) {
+        showToast('error', 'Validation Error', 'Please select at least a Department.');
         return;
     }
 
@@ -1348,12 +1378,22 @@ $('btn-run-forecast').addEventListener('click', async () => {
     try {
         const result = await apiFetch('/api/forecast', {
             method: 'POST',
-            body: JSON.stringify({ level, item_id, store_id, model, force_compute: true })
+            body: JSON.stringify({
+              dept: params.dept,
+              class: params.cls,
+              subclass: params.sub,
+              item_id: params.sku,
+              store_id: params.store_id,
+              country: params.country,
+              model: params.model,
+              force_compute: true
+            })
         });
         
         renderForecastChart(result);
         renderForecastGrid(result);
-        $('forecast-graph-title').textContent = `Live Forecast (${model.toUpperCase().replace('_', ' ')})`;
+        const modelLabel = params.model === 'exponential_smoothing' ? 'Holt-Winters' : 'ARIMA';
+        $('forecast-graph-title').textContent = `Live Forecast (${modelLabel}) — ${describeFcScope(params)}`;
     } catch (e) {
         showToast('error', 'Forecast Failed', e.message);
     } finally {

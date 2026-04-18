@@ -143,7 +143,7 @@ def get_filters():
         ).fetchall())
 
         stores = rows_to_list(conn.execute(
-            "SELECT DISTINCT STORE, STORE_NAME FROM location_st_master "
+            "SELECT DISTINCT STORE, STORE_NAME, AREA_NAME FROM location_st_master "
             "WHERE STORE IS NOT NULL ORDER BY STORE_NAME"
         ).fetchall())
 
@@ -742,62 +742,149 @@ def publish_grades():
 
 @app.route("/api/forecast", methods=["POST"])
 def generate_forecast():
+    """
+    Aggregated forecast endpoint.
+    Accepts individual filter parameters — all optional except dept (minimum scope).
+    Aggregates historical sales at whatever product-hierarchy + location scope is selected,
+    then runs the forecasting model on the aggregated time series.
+
+    Body JSON:
+      {
+        "dept": 107,                (required — minimum scope)
+        "class_": 3,                (optional)
+        "subclass": 6,              (optional)
+        "item_id": "130213005_...", (optional — specific SKU)
+        "store_id": "33186",        (optional — specific store)
+        "country": "SAU",           (optional — filter by country/area)
+        "model": "exponential_smoothing" | "arima",
+        "force_compute": false
+      }
+    """
     body = request.get_json()
-    level = body.get("level", "sku")
-    item_id = str(body.get("item_id"))
-    store_id = body.get("store_id")
+    dept      = body.get("dept")
+    class_    = body.get("class")
+    subclass  = body.get("subclass")
+    item_id   = body.get("item_id")       # specific SKU
+    store_id  = body.get("store_id")      # specific store
+    country   = body.get("country")       # country/area filter
     model_type = body.get("model", "exponential_smoothing")
     force_compute = body.get("force_compute", False)
-    
-    if not item_id or not store_id:
-        return jsonify({"error": "Selection ID and Store ID are required."}), 400
+
+    if not dept:
+        return jsonify({"error": "Department is required (minimum scope)."}), 400
 
     conn = get_db()
-    
-    # Map level to database column for filtering
-    level_map = {
-        "dept": "p.DEPT",
-        "class": "p.CLASS",
-        "subclass": "p.SUBCLASS",
-        "sku": "p.OPTION_ID"
-    }
-    filter_col = level_map.get(level, "p.OPTION_ID")
 
-    # 1. OPTIONAL: Check DB for pre-computed forecast (SKU level only for now)
-    if level == "sku" and not force_compute:
-        cached = conn.execute(
-            "SELECT TIME_ID, UNITS, MODEL_USED FROM forecasts_fact WHERE OPTION_ID = ? AND STORE = ? ORDER BY TIME_ID",
-            (item_id, store_id)
-        ).fetchall()
-        if cached:
-            # Still fetch history for the chart
-            hist_query = f"SELECT s.TIME_ID, SUM(s.REGULAR_SLS_UNITS + s.PROMO_SLS_UNITS + s.MRKDWN_SLS_UNITS) as TOTAL_SALES FROM sales_hist_fact s WHERE s.OPTION_ID = ? AND s.STORE = ? GROUP BY s.TIME_ID ORDER BY s.TIME_ID ASC"
-            hist_df = pd.read_sql_query(hist_query, conn, params=(item_id, store_id))
+    # ── Build dynamic WHERE clause ─────────────────────────────────────────
+    def _build_filters():
+        """Returns (where_clauses[], params[]) for both history and forecast queries."""
+        clauses = []
+        params = []
+
+        # Product hierarchy filters (always join through product_option_dim)
+        clauses.append("p.DEPT = ?")
+        params.append(int(dept))
+
+        if class_:
+            clauses.append("p.CLASS = ?")
+            params.append(int(class_))
+        if subclass:
+            clauses.append("p.SUBCLASS = ?")
+            params.append(int(subclass))
+        if item_id:
+            clauses.append("p.OPTION_ID = ?")
+            params.append(str(item_id))
+
+        # Location filters
+        if store_id:
+            clauses.append("s.STORE = ?")
+            params.append(int(store_id))
+        if country:
+            clauses.append("l.AREA_NAME = ?")
+            params.append(country)
+
+        return clauses, params
+
+    where_clauses, query_params = _build_filters()
+    where_sql = " AND ".join(where_clauses)
+
+    # ── 1. Try pre-computed forecasts (aggregated from forecasts_fact) ──────
+    if not force_compute:
+        # Build forecast aggregation query from forecasts_fact
+        fc_clauses = []
+        fc_params = []
+        fc_clauses.append("p.DEPT = ?")
+        fc_params.append(int(dept))
+        if class_:
+            fc_clauses.append("p.CLASS = ?")
+            fc_params.append(int(class_))
+        if subclass:
+            fc_clauses.append("p.SUBCLASS = ?")
+            fc_params.append(int(subclass))
+        if item_id:
+            fc_clauses.append("f.OPTION_ID = ?")
+            fc_params.append(str(item_id))
+        if store_id:
+            fc_clauses.append("f.STORE = ?")
+            fc_params.append(int(store_id))
+        if country:
+            fc_clauses.append("l.AREA_NAME = ?")
+            fc_params.append(country)
+
+        fc_where = " AND ".join(fc_clauses)
+
+        cached_query = f"""
+            SELECT f.TIME_ID, SUM(f.UNITS) AS TOTAL_UNITS, f.MODEL_USED
+            FROM forecasts_fact f
+            JOIN product_option_dim p ON f.OPTION_ID = p.OPTION_ID
+            LEFT JOIN location_st_master l ON f.STORE = l.STORE
+            WHERE {fc_where}
+            GROUP BY f.TIME_ID
+            ORDER BY f.TIME_ID ASC
+        """
+        try:
+            cached_df = pd.read_sql_query(cached_query, conn, params=fc_params)
+        except Exception:
+            cached_df = pd.DataFrame()
+
+        if not cached_df.empty:
+            # Fetch aggregated historical data too
+            hist_query = f"""
+                SELECT s.TIME_ID, SUM(s.REGULAR_SLS_UNITS + s.PROMO_SLS_UNITS + s.MRKDWN_SLS_UNITS) AS TOTAL_SALES
+                FROM sales_hist_fact s
+                JOIN product_option_dim p ON s.OPTION_ID = p.OPTION_ID
+                LEFT JOIN location_st_master l ON s.STORE = l.STORE
+                WHERE {where_sql}
+                GROUP BY s.TIME_ID
+                ORDER BY s.TIME_ID ASC
+            """
+            hist_df = pd.read_sql_query(hist_query, conn, params=query_params)
             conn.close()
             return jsonify({
                 "status": "success",
-                "model_used": cached[0]["MODEL_USED"],
+                "source": "pre-computed (aggregated)",
+                "model_used": cached_df["MODEL_USED"].iloc[0] if "MODEL_USED" in cached_df.columns else "exponential_smoothing",
                 "historical_dates": hist_df["TIME_ID"].astype(str).tolist(),
                 "historical_sales": hist_df["TOTAL_SALES"].tolist(),
-                "forecast_dates": [str(c["TIME_ID"]) for c in cached],
-                "forecast_sales": [c["UNITS"] for c in cached]
+                "forecast_dates": cached_df["TIME_ID"].astype(str).tolist(),
+                "forecast_sales": [round(v, 2) for v in cached_df["TOTAL_UNITS"].tolist()]
             })
 
-    # 2. RUN LIVE CALCULATION
-    # Aggregated query: join sales → product to filter by hierarchy
-    query = f"""
-        SELECT s.TIME_ID, SUM(s.REGULAR_SLS_UNITS + s.PROMO_SLS_UNITS + s.MRKDWN_SLS_UNITS) as TOTAL_SALES
+    # ── 2. Live computation on aggregated historical series ────────────────
+    hist_query = f"""
+        SELECT s.TIME_ID, SUM(s.REGULAR_SLS_UNITS + s.PROMO_SLS_UNITS + s.MRKDWN_SLS_UNITS) AS TOTAL_SALES
         FROM sales_hist_fact s
         JOIN product_option_dim p ON s.OPTION_ID = p.OPTION_ID
-        WHERE {filter_col} = ? AND s.STORE = ?
+        LEFT JOIN location_st_master l ON s.STORE = l.STORE
+        WHERE {where_sql}
         GROUP BY s.TIME_ID
         ORDER BY s.TIME_ID ASC
     """
-    df = pd.read_sql_query(query, conn, params=(item_id, store_id))
+    df = pd.read_sql_query(hist_query, conn, params=query_params)
+    conn.close()
 
     if df.empty or len(df) < 5:
-        conn.close()
-        return jsonify({"error": "Insufficient historical data for forecasting."}), 400
+        return jsonify({"error": "Insufficient historical data for the selected scope."}), 400
 
     series = df["TOTAL_SALES"].values
     last_time_id = df["TIME_ID"].iloc[-1]
@@ -806,7 +893,7 @@ def generate_forecast():
     try:
         from statsmodels.tsa.holtwinters import ExponentialSmoothing
         from statsmodels.tsa.arima.model import ARIMA
-        
+
         if model_type == "exponential_smoothing":
             model = ExponentialSmoothing(series, trend="add", seasonal=None, initialization_method="estimated")
             fit_model = model.fit()
@@ -815,18 +902,17 @@ def generate_forecast():
             model = ARIMA(series, order=(1, 1, 1))
             fit_model = model.fit()
             forecast_values = fit_model.forecast(forecast_weeks).tolist()
-            
         else:
             return jsonify({"error": "Unknown model selected."}), 400
-            
+
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": f"Model failed to calculate: {str(e)}"}), 500
 
-    # Generate future TIME_IDs (simplified extrapolation for the next 52 weeks)
+    # Generate future TIME_IDs
     year = int(str(last_time_id)[:4])
     week = int(str(last_time_id)[4:])
-    
+
     future_labels = []
     for _ in range(forecast_weeks):
         week += 1
@@ -837,6 +923,7 @@ def generate_forecast():
 
     return jsonify({
         "status": "success",
+        "source": "live computation",
         "model_used": model_type,
         "historical_dates": df["TIME_ID"].astype(str).tolist(),
         "historical_sales": df["TOTAL_SALES"].tolist(),

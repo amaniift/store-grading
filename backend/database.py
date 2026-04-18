@@ -231,6 +231,12 @@ CREATE TABLE IF NOT EXISTS forecasts_fact (
 )
 """
 
+# ─── Indexes ──────────────────────────────────────────────────────────────────
+IDX_SALES_PRODUCT_STORE = "CREATE INDEX IF NOT EXISTS idx_sales_product_store ON sales_hist_fact (OPTION_ID, STORE)"
+IDX_SALES_TIME = "CREATE INDEX IF NOT EXISTS idx_sales_time ON sales_hist_fact (TIME_ID)"
+IDX_SALES_STORE = "CREATE INDEX IF NOT EXISTS idx_sales_store ON sales_hist_fact (STORE)"
+IDX_PRODUCT_HIERARCHY = "CREATE INDEX IF NOT EXISTS idx_product_hierarchy ON product_option_dim (DEPT, CLASS, SUBCLASS)"
+
 ORACLE_DDL_REFERENCE = """
 -- Oracle-compatible DDL (reference only — app uses SQLite)
 CREATE TABLE store_grade (
@@ -295,6 +301,10 @@ def init_db(force_reload: bool = False) -> None:
     print("Creating tables...")
     for ddl in [DDL_SALES_HIST_FACT, DDL_PRODUCT_OPTION_DIM, DDL_LOCATION_ST_MASTER, DDL_STORE_GRADE, DDL_GRADING_RUN_LOG, DDL_FORECASTS_FACT]:
         cur.execute(ddl)
+    
+    print("Creating indexes...")
+    for idx in [IDX_SALES_PRODUCT_STORE, IDX_SALES_TIME, IDX_SALES_STORE, IDX_PRODUCT_HIERARCHY]:
+        cur.execute(idx)
     
     # Migration for PUBLISH_STATUS if it doesn't exist
     try:
