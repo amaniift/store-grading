@@ -869,7 +869,7 @@ def generate_forecast():
             conn.execute(cache_table_sql)
             cache_row = conn.execute(
                 """
-                SELECT MODEL_USED, SOURCE, HISTORICAL_DATES, HISTORICAL_SALES,
+                SELECT MODEL_USED, SOURCE, SCOPE_JSON, HISTORICAL_DATES, HISTORICAL_SALES,
                        FORECAST_DATES, FORECAST_SALES
                 FROM forecast_agg_cache
                 WHERE CACHE_KEY = ?
@@ -881,11 +881,14 @@ def generate_forecast():
 
         if cache_row:
             try:
+                scope_json = json.loads(
+                    cache_row["SCOPE_JSON"]) if cache_row["SCOPE_JSON"] else {}
                 historical_dates = json.loads(cache_row["HISTORICAL_DATES"])
                 historical_sales = json.loads(cache_row["HISTORICAL_SALES"])
                 forecast_dates = json.loads(cache_row["FORECAST_DATES"])
                 forecast_sales = json.loads(cache_row["FORECAST_SALES"])
             except Exception:
+                scope_json = {}
                 historical_dates = []
                 historical_sales = []
                 forecast_dates = []
@@ -897,6 +900,7 @@ def generate_forecast():
                     "status": "success",
                     "source": "cached live computation",
                     "model_used": cache_row["MODEL_USED"] or model_type,
+                    "model_params_used": scope_json.get("model_params_used"),
                     "historical_dates": historical_dates,
                     "historical_sales": historical_sales,
                     "forecast_dates": forecast_dates,
@@ -1000,6 +1004,7 @@ def generate_forecast():
 
     forecast_weeks = _as_int(model_params.get("forecast_horizon"), 52)
     model_params_used = {"forecast_horizon": forecast_weeks}
+    model_warnings = []
 
     try:
         from statsmodels.tsa.holtwinters import ExponentialSmoothing
@@ -1014,15 +1019,23 @@ def generate_forecast():
                 "seasonality_type", model_params.get("seasonal", "none"))
             trend = _normalize_hw_component(trend_raw)
             seasonal = _normalize_hw_component(seasonal_raw)
-            seasonal_periods = _as_int(
+            seasonal_periods_requested = _as_int(
                 model_params.get("seasonal_period",
                                  model_params.get("seasonal_periods", 52)),
                 52,
                 minimum=2,
             )
+            seasonal_periods = seasonal_periods_requested
             damped_trend = _as_bool(model_params.get("damped_trend"), False)
             if trend is None:
                 damped_trend = False
+
+            # Statsmodels requires at least two full seasonal cycles for heuristic initialization.
+            if seasonal is not None and len(series) < (2 * seasonal_periods):
+                seasonal_periods = max(2, len(series) // 2)
+                model_warnings.append(
+                    f"Adjusted seasonal_periods from {seasonal_periods_requested} to {seasonal_periods} due to limited history ({len(series)} points)."
+                )
 
             hw_kwargs = {
                 "trend": trend,
@@ -1041,6 +1054,8 @@ def generate_forecast():
                 "trend": trend,
                 "seasonal": seasonal,
                 "seasonal_periods": seasonal_periods if seasonal is not None else None,
+                "seasonal_periods_requested": seasonal_periods_requested if seasonal is not None else None,
+                "seasonal_periods_adjusted": bool(seasonal is not None and seasonal_periods != seasonal_periods_requested),
                 "damped_trend": damped_trend,
             })
         elif model_type == "arima":
@@ -1141,6 +1156,7 @@ def generate_forecast():
         "source": "live computation",
         "model_used": model_type,
         "model_params_used": model_params_used,
+        "warnings": model_warnings,
         "historical_dates": df["TIME_ID"].astype(str).tolist(),
         "historical_sales": df["TOTAL_SALES"].tolist(),
         "forecast_dates": future_labels,

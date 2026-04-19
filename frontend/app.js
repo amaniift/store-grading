@@ -1460,6 +1460,30 @@ function describeFcScope(params) {
   return parts.join(' › ') + ' — ' + locParts.join(', ');
 }
 
+function formatForecastAppliedSummary(data) {
+  const periods = Array.isArray(data.forecast_sales) ? data.forecast_sales.length : 0;
+  const source = data.source || 'unknown source';
+  const model = data.model_used === 'arima' ? 'ARIMA' : 'Holt-Winters';
+  const base = `Source: ${source} | Model: ${model} | Forecast periods: ${periods}`;
+
+  if (data.model_used !== 'exponential_smoothing' || !data.model_params_used) {
+    return base;
+  }
+
+  const used = data.model_params_used;
+  const trend = used.trend || 'none';
+  const seasonal = used.seasonal || 'none';
+  const seasonalPeriods = used.seasonal_periods ?? 'n/a';
+  const damped = used.damped_trend ? 'on' : 'off';
+  return `${base} | trend=${trend}, seasonal=${seasonal}, seasonal_period=${seasonalPeriods}, damped=${damped}`;
+}
+
+function renderForecastAppliedSummary(data) {
+  const el = $('forecast-applied-config');
+  if (!el) return;
+  el.textContent = formatForecastAppliedSummary(data);
+}
+
 $('btn-fc-search').addEventListener('click', async () => {
   const params = getFcParams();
   if (!params.dept) {
@@ -1486,6 +1510,7 @@ $('btn-fc-search').addEventListener('click', async () => {
 
     renderForecastChart(result);
     renderForecastGrid(result);
+    renderForecastAppliedSummary(result);
     $('forecast-graph-title').textContent = `Sales Forecast — ${describeFcScope(params)}`;
   } catch (e) {
     showToast('error', 'Search Failed', e.message);
@@ -1516,7 +1541,8 @@ $('btn-run-forecast').addEventListener('click', async () => {
   $('btn-run-forecast').innerText = 'Recalculating...';
 
   try {
-    const hwConfig = params.modelConfig.holtWinters;
+    const hwConfig = readHoltWintersStateFromControls();
+    forecastModelState.holtWinters = { ...hwConfig };
     const modelParams = params.model === 'exponential_smoothing'
       ? {
         forecast_horizon: hwConfig.forecastHorizon,
@@ -1547,8 +1573,10 @@ $('btn-run-forecast').addEventListener('click', async () => {
 
     renderForecastChart(result);
     renderForecastGrid(result);
+    renderForecastAppliedSummary(result);
     const modelLabel = params.model === 'exponential_smoothing' ? 'Holt-Winters' : 'ARIMA';
-    $('forecast-graph-title').textContent = `Live Forecast (${modelLabel}) — ${describeFcScope(params)}`;
+    const periodCount = Array.isArray(result.forecast_sales) ? result.forecast_sales.length : 0;
+    $('forecast-graph-title').textContent = `Live Forecast (${modelLabel}, ${periodCount} periods) — ${describeFcScope(params)}`;
   } catch (e) {
     showToast('error', 'Forecast Failed', e.message);
   } finally {
@@ -1606,6 +1634,7 @@ function renderForecastChart(data) {
   const labels = [...data.historical_dates, ...data.forecast_dates];
   const historicalData = data.historical_sales.concat(Array(data.forecast_sales.length).fill(null));
   const forecastData = Array(data.historical_sales.length - 1).fill(null).concat([data.historical_sales[data.historical_sales.length - 1]], data.forecast_sales);
+  const forecastLabel = `${data.forecast_sales.length}-Period Forecast`;
 
   forecastChartInstance = new Chart(ctx, {
     type: 'line',
@@ -1621,7 +1650,7 @@ function renderForecastChart(data) {
           tension: 0.1
         },
         {
-          label: '52-Week Forecast',
+          label: forecastLabel,
           data: forecastData,
           borderColor: 'rgba(34, 197, 94, 1)',
           borderDash: [5, 5],
