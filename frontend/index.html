@@ -91,6 +91,19 @@
           </span>
           <span class="nav-label">Forecasts</span>
         </button>
+        <button class="nav-item" id="nav-size-range-analysis" data-page="page-size-range-analysis">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+              <path d="M3 7h18" />
+              <path d="M3 17h18" />
+              <path d="M7 7v4" />
+              <path d="M11 17v-4" />
+              <path d="M15 7v6" />
+              <path d="M19 17v-7" />
+            </svg>
+          </span>
+          <span class="nav-label">Size Range Analysis</span>
+        </button>
         <button class="nav-item" id="nav-admin" data-page="page-admin">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
@@ -221,7 +234,8 @@
               </svg>
               Generate Store Grading
             </button>
-            <button class="btn btn-secondary" id="btn-run-status" type="button" style="background: rgba(139, 92, 246, 0.1); border-color: rgba(139, 92, 246, 0.2); color: #a78bfa;">
+            <button class="btn btn-secondary" id="btn-run-status" type="button"
+              style="background: rgba(139, 92, 246, 0.1); border-color: rgba(139, 92, 246, 0.2); color: #a78bfa;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                 <line x1="16" y1="2" x2="16" y2="6" />
@@ -308,7 +322,8 @@
                 <line x1="9" y1="3" x2="9" y2="21" />
               </svg><span id="grid-count-label">Select filters and search to load data</span></div>
             <div class="grid-actions">
-              <button class="btn btn-publish" id="btn-publish-selected" title="Publish Selected Grades" disabled style="padding: 0 12px; height: 32px; font-size: 0.75rem; display: flex; align-items: center; gap: 6px;">
+              <button class="btn btn-publish" id="btn-publish-selected" title="Publish Selected Grades" disabled
+                style="padding: 0 12px; height: 32px; font-size: 0.75rem; display: flex; align-items: center; gap: 6px;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                   <polyline points="17 8 12 3 7 8" />
@@ -334,7 +349,8 @@
                 </svg></div>
               <h3 class="empty-title">No Data Yet</h3>
               <p class="empty-desc">Select a Department and Class, then click <strong>Search Grades</strong> or
-                <strong>Generate Store Grading</strong>.</p>
+                <strong>Generate Store Grading</strong>.
+              </p>
             </div>
             <table class="data-table hidden" id="data-table">
               <thead>
@@ -897,11 +913,12 @@
             <div class="filter-group">
               <label for="fc-item-search" class="filter-label">Product (SKU)</label>
               <div class="select-wrapper">
-                <input type="text" id="fc-item-search" list="fc-item-list" placeholder="Search or Select SKU..." class="filter-select" disabled>
+                <input type="text" id="fc-item-search" list="fc-item-list" placeholder="Search or Select SKU..."
+                  class="filter-select" disabled>
                 <datalist id="fc-item-list"></datalist>
               </div>
             </div>
-            
+
             <div class="filter-group">
               <label for="fc-country-select" class="filter-label">Country / Area</label>
               <div class="select-wrapper">
@@ -914,7 +931,8 @@
             <div class="filter-group">
               <label for="fc-store-search" class="filter-label">Location (Store)</label>
               <div class="select-wrapper">
-                <input type="text" id="fc-store-search" list="fc-store-list" placeholder="Search or Select Store..." class="filter-select">
+                <input type="text" id="fc-store-search" list="fc-store-list" placeholder="Search or Select Store..."
+                  class="filter-select">
                 <datalist id="fc-store-list"></datalist>
               </div>
             </div>
@@ -923,13 +941,14 @@
               <label for="fc-model-select" class="filter-label">Forecasting Model</label>
               <div class="select-wrapper">
                 <select id="fc-model-select" class="filter-select">
+                  <option value="" selected>None</option>
                   <option value="exponential_smoothing">Exponential Smoothing (Holt-Winters)</option>
                   <option value="arima">ARIMA</option>
                 </select>
               </div>
             </div>
 
-            <div class="filter-actions" style="margin-top: 0; padding-top: 5px; display: flex; gap: 10px;">
+            <div class="filter-actions fc-actions-row" style="margin-top: 0; padding-top: 5px;">
               <button class="btn btn-secondary" id="btn-fc-search" type="button">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
                   <circle cx="11" cy="11" r="8"></circle>
@@ -947,15 +966,70 @@
           </div>
         </div>
 
+        <div class="filter-panel fc-model-config-panel hidden" id="fc-hw-config-panel" aria-live="polite">
+          <div class="fc-model-config-header">
+            <h3 class="fc-model-config-title">Exponential Smoothing (Holt-Winters) Configuration</h3>
+            <p class="fc-model-config-desc">Tune the model before clicking Update Forecast.</p>
+          </div>
+          <div class="fc-model-config-grid">
+            <div class="filter-group">
+              <label for="fc-hw-forecast-horizon" class="filter-label">Forecast Horizon (Periods)</label>
+              <input id="fc-hw-forecast-horizon" class="filter-select fc-config-input" type="number" min="1" value="52">
+              <p class="fc-setting-help">Number of periods to predict into the future.</p>
+            </div>
+
+            <div class="filter-group">
+              <label for="fc-hw-seasonal-period" class="filter-label">Seasonal Period</label>
+              <input id="fc-hw-seasonal-period" class="filter-select fc-config-input" type="number" min="1" value="52">
+              <p class="fc-setting-help">Length of one full seasonal cycle (e.g., 52 for weekly data).</p>
+            </div>
+
+            <div class="filter-group">
+              <label for="fc-hw-trend-type" class="filter-label">Trend Type</label>
+              <div class="select-wrapper">
+                <select id="fc-hw-trend-type" class="filter-select">
+                  <option value="none">None</option>
+                  <option value="additive" selected>Additive</option>
+                  <option value="multiplicative">Multiplicative</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="filter-group">
+              <label for="fc-hw-seasonality-type" class="filter-label">Seasonality Type</label>
+              <div class="select-wrapper">
+                <select id="fc-hw-seasonality-type" class="filter-select">
+                  <option value="none">None</option>
+                  <option value="additive">Additive</option>
+                  <option value="multiplicative" selected>Multiplicative</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="filter-group fc-damped-wrap" id="fc-hw-damped-wrap">
+              <label for="fc-hw-damped-trend" class="filter-label">Dampen Trend</label>
+              <label class="fc-toggle-line">
+                <input id="fc-hw-damped-trend" type="checkbox">
+                <span>Enable damped trend</span>
+              </label>
+              <p class="fc-setting-help">Flattens the trend over time to prevent unrealistic long-term growth.</p>
+            </div>
+          </div>
+        </div>
+
         <!-- Chart Container -->
-        <div class="data-panel" style="padding: 20px; margin-top: 20px; background: var(--card-bg); border-radius: 8px;">
-          <h3 id="forecast-graph-title" style="margin-bottom: 20px; color: var(--text-main);">Performance Visualization</h3>
+        <div class="data-panel"
+          style="padding: 20px; margin-top: 20px; background: var(--card-bg); border-radius: 8px;">
+          <h3 id="forecast-graph-title" style="margin-bottom: 20px; color: var(--text-main);">Performance Visualization
+          </h3>
           <canvas id="forecastChart" width="100%" height="40"></canvas>
         </div>
 
         <!-- Data Grid Container -->
-        <div class="data-panel" style="margin-top: 20px; background: var(--card-bg); border-radius: 8px; overflow: hidden;">
-          <div class="grid-header" style="padding: 15px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+        <div class="data-panel"
+          style="margin-top: 20px; background: var(--card-bg); border-radius: 8px; overflow: hidden;">
+          <div class="grid-header"
+            style="padding: 15px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
             <h3 style="margin: 0; font-size: 1rem; color: var(--text-main);">Forecast Data Breakdown</h3>
           </div>
           <div class="table-container" style="max-height: 400px; overflow-y: auto;">
@@ -969,9 +1043,361 @@
                 </tr>
               </thead>
               <tbody id="forecast-data-body">
-                <tr><td colspan="4" style="text-align:center; padding: 40px; color: var(--text-muted)">Perform a search or update forecast to view data</td></tr>
+                <tr>
+                  <td colspan="4" style="text-align:center; padding: 40px; color: var(--text-muted)">Perform a search or
+                    update forecast to view data</td>
+                </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════
+           PAGE: SIZE RANGE ANALYSIS
+      ══════════════════════════════════════════════ -->
+      <section class="page hidden" id="page-size-range-analysis" aria-label="Size Range Analysis">
+        <div class="sra-header-row">
+          <div>
+            <h1 class="page-title">Size Range Analysis</h1>
+          </div>
+          <div class="sra-user-pill">Logged in as: User Name</div>
+        </div>
+
+        <div class="filter-panel sra-filter-panel">
+          <div class="filter-grid sra-filter-grid">
+            <div class="filter-group">
+              <label for="sra-brand-select" class="filter-label">Brand*</label>
+              <div class="select-wrapper">
+                <select id="sra-brand-select" class="filter-select">
+                  <option value="">All</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="sra-dept-select" class="filter-label">Department*</label>
+              <div class="select-wrapper">
+                <select id="sra-dept-select" class="filter-select">
+                  <option value="">All</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="sra-class-select" class="filter-label">Class</label>
+              <div class="select-wrapper">
+                <select id="sra-class-select" class="filter-select">
+                  <option value="">All</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="sra-subclass-select" class="filter-label">Subclass</label>
+              <div class="select-wrapper">
+                <select id="sra-subclass-select" class="filter-select">
+                  <option value="">All</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="sra-country-select" class="filter-label">Country*</label>
+              <div class="select-wrapper">
+                <select id="sra-country-select" class="filter-select">
+                  <option value="">All</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="sra-grade-select" class="filter-label">Grade</label>
+              <div class="select-wrapper">
+                <select id="sra-grade-select" class="filter-select">
+                  <option value="">All</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sra-grid-meta">
+          <div class="sra-count-label" id="sra-count-label">Showing 1-8 of 15</div>
+          <div class="sra-pagination-inline">
+            <button class="page-btn" id="sra-btn-prev" type="button" disabled>Prev</button>
+            <div class="page-info" id="sra-page-info">Page 1 of 2</div>
+            <button class="page-btn" id="sra-btn-next" type="button">Next</button>
+          </div>
+        </div>
+
+        <div class="table-container shadow-sm sra-table-shell">
+          <table id="sra-data-table" class="data-table sra-data-table">
+            <thead>
+              <tr>
+                <th style="width:34px;"><input type="checkbox" id="sra-select-all" aria-label="Select all rows"></th>
+                <th>Size Profile Name</th>
+                <th>Class</th>
+                <th>Subclass</th>
+                <th>Country</th>
+                <th>Store</th>
+                <th>Grade</th>
+                <th>Size Range</th>
+                <th>Demand Filter</th>
+                <th>Submit Status</th>
+                <th>Enable/Publish</th>
+                <th>Last Modified User</th>
+              </tr>
+            </thead>
+            <tbody id="sra-table-body"></tbody>
+          </table>
+        </div>
+
+        <div class="sra-actions-row">
+          <div class="sra-actions-left">
+            <button class="btn sra-btn" id="sra-btn-export" type="button">Export</button>
+            <button class="btn sra-btn" id="sra-btn-upload" type="button">Upload</button>
+          </div>
+          <div class="sra-actions-right">
+            <button class="btn sra-btn" id="sra-btn-add" type="button">Add</button>
+            <button class="btn sra-btn" id="sra-btn-delete" type="button">Delete</button>
+            <button class="btn sra-btn" id="sra-btn-submit" type="button">Submit</button>
+            <button class="btn sra-btn" id="sra-btn-save" type="button">Save</button>
+            <button class="btn sra-btn" id="sra-btn-add-size-range" type="button">Add Size Range</button>
+            <button class="btn sra-btn" id="sra-btn-attach-size-ranges" type="button">Attach Size Ranges</button>
+            <button class="btn sra-btn" id="sra-btn-demand-config" type="button">Demand Filtering Config</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════
+           PAGE: DEMAND FILTERING CONFIGURATION
+      ══════════════════════════════════════════════ -->
+      <section class="page hidden" id="page-demand-filtering-config" aria-label="Demand Filtering Configuration">
+        <div class="dfc-header-row">
+          <h1 class="page-title">Demand Filtering Configuration</h1>
+          <div class="dfc-header-actions">
+            <button class="btn sra-btn" id="dfc-btn-back" type="button">Back to Size Profile Analysis</button>
+            <div class="sra-user-pill">Logged in as: User Name</div>
+          </div>
+        </div>
+
+        <div class="filter-panel dfc-panel">
+          <div class="dfc-panel-header">
+            <h2 class="dfc-panel-title">Demand Filtering Rules</h2>
+            <span class="dfc-panel-meta" id="dfc-rules-meta">Showing 5 of 5</span>
+          </div>
+          <div class="table-container shadow-sm dfc-table-shell">
+            <table class="data-table dfc-rules-table">
+              <thead>
+                <tr>
+                  <th>Dataset Name</th>
+                  <th>Code</th>
+                  <th>Time Period</th>
+                  <th>Sales Types</th>
+                  <th>Filter Conditions</th>
+                  <th>Status</th>
+                  <th style="width:86px;"> </th>
+                </tr>
+              </thead>
+              <tbody id="dfc-rules-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="filter-panel dfc-panel">
+          <h2 class="dfc-panel-title">Dataset Setup</h2>
+          <div class="dfc-form-grid">
+            <div class="filter-group">
+              <label for="dfc-dataset-name" class="filter-label">Dataset Name*</label>
+              <input id="dfc-dataset-name" class="dfc-input" type="text" placeholder="e.g. Core Baseline Filter">
+            </div>
+            <div class="filter-group">
+              <label for="dfc-dataset-code" class="filter-label">Dataset Code*</label>
+              <input id="dfc-dataset-code" class="dfc-input" type="text" placeholder="e.g. DF_BASE">
+            </div>
+            <div class="filter-group">
+              <label for="dfc-status" class="filter-label">Status</label>
+              <select id="dfc-status" class="dfc-input">
+                <option value="Draft">Draft</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-panel dfc-panel">
+          <h2 class="dfc-panel-title">Rule Conditions</h2>
+
+          <div class="dfc-rule-block">
+            <h3 class="dfc-rule-title">Time Period</h3>
+            <p class="dfc-rule-help">Choose which historical period to consider.</p>
+            <div class="dfc-form-grid dfc-time-grid">
+              <div class="filter-group">
+                <label for="dfc-period-type" class="filter-label">Period Type</label>
+                <select id="dfc-period-type" class="dfc-input">
+                  <option value="Custom Date Range">Custom Date Range</option>
+                  <option value="Fiscal Week Range">Fiscal Week Range</option>
+                  <option value="Last 13 Weeks">Last 13 Weeks</option>
+                  <option value="Last 26 Weeks">Last 26 Weeks</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label for="dfc-start" class="filter-label">Start</label>
+                <input id="dfc-start" class="dfc-input" type="text" placeholder="e.g. 2026-W01 or 2026-01-01">
+              </div>
+              <div class="filter-group">
+                <label for="dfc-end" class="filter-label">End</label>
+                <input id="dfc-end" class="dfc-input" type="text" placeholder="e.g. 2026-W12 or 2026-03-31">
+              </div>
+            </div>
+          </div>
+
+          <div class="dfc-rule-block">
+            <h3 class="dfc-rule-title">Sales Conditions</h3>
+            <p class="dfc-rule-help">Pick one or more sales buckets for demand calculation.</p>
+            <div class="dfc-sales-chip-row">
+              <label class="dfc-sales-chip"><input id="dfc-sales-full-price" type="checkbox"> <span>Full
+                  Price</span></label>
+              <label class="dfc-sales-chip"><input id="dfc-sales-markdown" type="checkbox">
+                <span>Markdown</span></label>
+              <label class="dfc-sales-chip"><input id="dfc-sales-promo" type="checkbox"> <span>Promo</span></label>
+            </div>
+          </div>
+
+          <div class="dfc-rule-block">
+            <div class="dfc-rule-head">
+              <h3 class="dfc-rule-title">Start / Stop Rules</h3>
+              <label class="dfc-enable-toggle"><input id="dfc-enable-rules" type="checkbox"> <span>Enable</span></label>
+            </div>
+
+            <div class="dfc-sub-block" id="dfc-start-stop-wrap">
+              <div class="dfc-sub-title">Start</div>
+              <div class="dfc-inline-row">
+                <span>When</span>
+                <input id="dfc-start-count" class="dfc-inline-input" type="number" min="0" value="2">
+                <select id="dfc-start-bucket" class="dfc-inline-select">
+                  <option value="Size / Styles">Size / Styles</option>
+                  <option value="Percent of the Size / Styles">Percent of the Size / Styles</option>
+                </select>
+                <span>have sales above</span>
+                <input id="dfc-start-units" class="dfc-inline-input" type="number" min="0" value="0">
+                <span>units</span>
+              </div>
+            </div>
+
+            <div class="dfc-sub-block" id="dfc-stop-wrap">
+              <div class="dfc-sub-title">Stop</div>
+              <label class="dfc-inline-row dfc-radio-row">
+                <input id="dfc-stop-mode-trend" name="dfc-stop-mode" type="radio" value="trend" checked>
+                <span>When</span>
+                <input id="dfc-trend-threshold" class="dfc-inline-input" type="number" min="0" value="75">
+                <select id="dfc-trend-bucket" class="dfc-inline-select">
+                  <option value="Size / Styles">Size / Styles</option>
+                  <option value="Percent of the Size / Styles">Percent of the Size / Styles</option>
+                </select>
+                <span>have</span>
+                <select id="dfc-trend-type" class="dfc-inline-select">
+                  <option value="Flat">Flat</option>
+                  <option value="Declining">Declining</option>
+                  <option value="Zero">Zero</option>
+                </select>
+                <span>sales for</span>
+                <input id="dfc-trend-periods" class="dfc-inline-input" type="number" min="1" value="2">
+                <span>or more periods</span>
+              </label>
+
+              <label class="dfc-inline-row dfc-radio-row">
+                <input id="dfc-stop-mode-receipts" name="dfc-stop-mode" type="radio" value="receipts">
+                <span>When sales of</span>
+                <input id="dfc-receipts-sales" class="dfc-inline-input" type="number" min="0" value="50">
+                <select id="dfc-receipts-bucket" class="dfc-inline-select">
+                  <option value="Size / Styles">Size / Styles</option>
+                  <option value="Percent of the Size / Styles">Percent of the Size / Styles</option>
+                </select>
+                <span>exceed</span>
+                <input id="dfc-receipts-percent" class="dfc-inline-input" type="number" min="0" value="75">
+                <span>percent of to-date receipts</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="dfc-rule-block">
+            <label for="dfc-notes" class="filter-label">Notes</label>
+            <input id="dfc-notes" class="dfc-input" type="text" placeholder="Optional notes for planners">
+          </div>
+
+          <div class="dfc-summary-row">
+            <div class="dfc-summary-text" id="dfc-summary-text"></div>
+            <div class="dfc-summary-actions">
+              <button class="btn sra-btn" id="dfc-btn-save" type="button">Save</button>
+              <button class="btn sra-btn" id="dfc-btn-clear" type="button">Clear</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════
+           PAGE: ATTACH SIZE RANGE
+      ══════════════════════════════════════════════ -->
+      <section class="page hidden" id="page-attach-size-range" aria-label="Attach Size Range">
+        <div class="asr-header-row">
+          <h1 class="page-title">Attach Size Range</h1>
+          <div class="asr-header-actions">
+            <button class="btn sra-btn" id="asr-btn-back" type="button">Back to Size Profile Analysis</button>
+            <div class="sra-user-pill">Logged in as: User Name</div>
+          </div>
+        </div>
+
+        <div class="filter-panel asr-panel">
+          <div class="asr-top-grid-wrap">
+            <div class="asr-form-grid">
+              <div class="asr-label-cell asr-required">Size Range*</div>
+              <div class="asr-input-cell asr-highlight"><input id="asr-size-range" class="asr-top-input" type="text"
+                  value="M_to_XL"></div>
+              <div class="asr-nav-cell"><button class="btn sra-btn" id="asr-btn-prev-range"
+                  type="button">Previous</button></div>
+              <div class="asr-nav-cell"><button class="btn sra-btn" id="asr-btn-next-range" type="button">Next</button>
+              </div>
+
+              <div class="asr-label-cell">Department</div>
+              <div class="asr-input-cell"><input id="asr-department" class="asr-top-input" type="text" value="106">
+              </div>
+              <div class="asr-label-cell">Class</div>
+              <div class="asr-input-cell"><input id="asr-class" class="asr-top-input" type="text" value="10"></div>
+
+              <div class="asr-label-cell">Subclass</div>
+              <div class="asr-input-cell"><input id="asr-subclass" class="asr-top-input" type="text" value="4"></div>
+              <div class="asr-label-cell">Seasonality</div>
+              <div class="asr-input-cell"><input id="asr-seasonality" class="asr-top-input" type="text"></div>
+
+              <div class="asr-label-cell">Season</div>
+              <div class="asr-input-cell"><input id="asr-season" class="asr-top-input" type="text"></div>
+              <div class="asr-spacer-cell"></div>
+              <div class="asr-spacer-cell"></div>
+            </div>
+          </div>
+
+          <div class="asr-results-meta" id="asr-results-meta">Showing results 16 of 16</div>
+
+          <div class="table-container shadow-sm asr-table-shell">
+            <table class="data-table asr-data-table">
+              <thead>
+                <tr>
+                  <th style="width:46px;"><input type="checkbox" id="asr-select-all"
+                      aria-label="Select all attach rows"></th>
+                  <th>Option</th>
+                  <th>Option_Desc</th>
+                  <th style="width:110px;">Attached</th>
+                  <th style="width:190px;">Last Updated By</th>
+                  <th style="width:220px;">Last Update Time</th>
+                </tr>
+              </thead>
+              <tbody id="asr-table-body"></tbody>
+            </table>
+          </div>
+
+          <div class="asr-actions-row">
+            <button class="btn sra-btn" id="asr-btn-add" type="button">Add</button>
+            <button class="btn sra-btn" id="asr-btn-delete" type="button">Delete</button>
+            <button class="btn sra-btn" id="asr-btn-reset" type="button">Reset</button>
+            <button class="btn sra-btn" id="asr-btn-save" type="button">Save</button>
           </div>
         </div>
       </section>
@@ -1102,14 +1528,21 @@
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
   <!-- ─── DELETE CONFIRM MODAL (ADMIN) ────────────────────────── -->
-  <div class="modal-overlay hidden" id="admin-delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+  <div class="modal-overlay hidden" id="admin-delete-modal" role="dialog" aria-modal="true"
+    aria-labelledby="delete-modal-title">
     <div class="modal">
       <div class="modal-header" style="border-bottom-color: var(--danger-subtle);">
-        <div class="modal-icon" style="color: var(--danger);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+        <div class="modal-icon" style="color: var(--danger);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" width="22" height="22">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg></div>
         <h2 class="modal-title" id="delete-modal-title">Delete Store Grades</h2>
       </div>
       <div class="modal-body">
-        <p>You are about to permanently delete grades for <strong id="admin-delete-count-display">0</strong> selected segments.</p>
+        <p>You are about to permanently delete grades for <strong id="admin-delete-count-display">0</strong> selected
+          segments.</p>
         <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem;">
           This action cannot be undone. All store-to-grade assignments for these scopes will be erased.
         </p>
@@ -1117,7 +1550,12 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" id="admin-delete-cancel">Cancel</button>
         <button type="button" class="btn btn-danger" id="admin-delete-confirm">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <line x1="10" y1="11" x2="10" y2="17" />
+            <line x1="14" y1="11" x2="14" y2="17" />
+          </svg>
           Confirm Delete
         </button>
       </div>
@@ -1151,14 +1589,20 @@
           <label class="modal-option-label">Time Period Scope <span class="optional-badge">Optional</span></label>
           <div style="display: flex; gap: 10px; margin-top: 8px;">
             <div style="flex: 1">
-              <label for="generate-date-from" style="display: block; font-size: 0.65rem; color: var(--text-muted); margin-bottom: 4px;">From Week</label>
-              <select id="generate-date-from" class="filter-select" style="background-image:none; padding-right:12px; height: 36px; border: 1px solid var(--border-light); border-radius: 6px; background-color: var(--card-bg); color: var(--text-main);">
+              <label for="generate-date-from"
+                style="display: block; font-size: 0.65rem; color: var(--text-muted); margin-bottom: 4px;">From
+                Week</label>
+              <select id="generate-date-from" class="filter-select"
+                style="background-image:none; padding-right:12px; height: 36px; border: 1px solid var(--border-light); border-radius: 6px; background-color: var(--card-bg); color: var(--text-main);">
                 <option value="">All Weeks</option>
               </select>
             </div>
             <div style="flex: 1">
-              <label for="generate-date-to" style="display: block; font-size: 0.65rem; color: var(--text-muted); margin-bottom: 4px;">To Week</label>
-              <select id="generate-date-to" class="filter-select" style="background-image:none; padding-right:12px; height: 36px; border: 1px solid var(--border-light); border-radius: 6px; background-color: var(--card-bg); color: var(--text-main);">
+              <label for="generate-date-to"
+                style="display: block; font-size: 0.65rem; color: var(--text-muted); margin-bottom: 4px;">To
+                Week</label>
+              <select id="generate-date-to" class="filter-select"
+                style="background-image:none; padding-right:12px; height: 36px; border: 1px solid var(--border-light); border-radius: 6px; background-color: var(--card-bg); color: var(--text-main);">
                 <option value="">All Weeks</option>
               </select>
             </div>
@@ -1181,6 +1625,35 @@
           </svg>
           Run Grading
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── SIZE RANGE: ADD MODAL ─────────────────────────────── -->
+  <div class="sra-modal-overlay hidden" id="sra-add-modal" role="dialog" aria-modal="true"
+    aria-labelledby="sra-add-modal-title">
+    <div class="sra-modal">
+      <div class="sra-modal-header">
+        <h2 class="sra-modal-title" id="sra-add-modal-title">Add Size Range</h2>
+        <button class="sra-modal-close" id="sra-modal-close" aria-label="Close add size range modal">×</button>
+      </div>
+      <div class="sra-modal-body">
+        <table class="sra-modal-table">
+          <thead>
+            <tr>
+              <th style="width:120px;">
+                <button class="btn sra-btn sra-btn-small" id="sra-modal-add-row" type="button">Add</button>
+              </th>
+              <th>Size Range</th>
+              <th>Size Code</th>
+              <th>Size profile values</th>
+            </tr>
+          </thead>
+          <tbody id="sra-modal-rows"></tbody>
+        </table>
+      </div>
+      <div class="sra-modal-footer">
+        <button class="btn sra-btn" id="sra-modal-save" type="button">Save</button>
       </div>
     </div>
   </div>

@@ -835,7 +835,8 @@ def generate_forecast():
         "country": country or None,
         "model": model_type,
     }
-    scope_key = json.dumps(scope_descriptor, sort_keys=True, separators=(",", ":"))
+    scope_key = json.dumps(
+        scope_descriptor, sort_keys=True, separators=(",", ":"))
 
     cache_table_sql = """
         CREATE TABLE IF NOT EXISTS forecast_agg_cache (
