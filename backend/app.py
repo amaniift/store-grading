@@ -219,6 +219,261 @@ def get_subclasses():
         return jsonify({"error": str(e)}), 500
 
 
+def build_ranging_dashboard_where(args):
+    clauses = ["1=1"]
+    params = []
+
+    brand = args.get("brand", type=str)
+    dept = args.get("dept", type=int)
+    class_ = args.get("class", type=int)
+    subclass = args.get("subclass", type=int)
+    country = args.get("country", type=str)
+    store = args.get("store", type=str)
+
+    if brand:
+        clauses.append("BRAND = ?")
+        params.append(brand)
+    if dept is not None:
+        clauses.append("DEPT = ?")
+        params.append(dept)
+    if class_ is not None:
+        clauses.append("CLASS = ?")
+        params.append(class_)
+    if subclass is not None:
+        clauses.append("SUBCLASS = ?")
+        params.append(subclass)
+    if country:
+        clauses.append("AREA_NAME = ?")
+        params.append(country)
+    if store:
+        clauses.append("STORE_NAME = ?")
+        params.append(store)
+
+    return " AND ".join(clauses), params
+
+
+@app.route("/api/ranging-dashboard/filters")
+def ranging_dashboard_filters():
+    try:
+        conn = get_db()
+
+        brands = [r["BRAND"] for r in conn.execute(
+            "SELECT DISTINCT BRAND FROM mv_option_loc "
+            "WHERE BRAND IS NOT NULL AND BRAND != '' ORDER BY BRAND"
+        ).fetchall()]
+
+        depts = rows_to_list(conn.execute(
+            "SELECT DISTINCT DEPT, DEPT_NAME FROM mv_option_loc "
+            "WHERE DEPT IS NOT NULL ORDER BY DEPT"
+        ).fetchall())
+
+        classes = rows_to_list(conn.execute(
+            "SELECT DISTINCT DEPT, CLASS, CLASS_NAME FROM mv_option_loc "
+            "WHERE CLASS IS NOT NULL ORDER BY DEPT, CLASS"
+        ).fetchall())
+
+        subclasses = rows_to_list(conn.execute(
+            "SELECT DISTINCT DEPT, CLASS, SUBCLASS, SUB_NAME FROM mv_option_loc "
+            "WHERE SUBCLASS IS NOT NULL ORDER BY DEPT, CLASS, SUBCLASS"
+        ).fetchall())
+
+        countries = [r["AREA_NAME"] for r in conn.execute(
+            "SELECT DISTINCT AREA_NAME FROM mv_option_loc "
+            "WHERE AREA_NAME IS NOT NULL AND AREA_NAME != '' ORDER BY AREA_NAME"
+        ).fetchall()]
+
+        stores = rows_to_list(conn.execute(
+            "SELECT DISTINCT LOC, STORE_NAME, AREA_NAME FROM mv_option_loc "
+            "WHERE STORE_NAME IS NOT NULL AND STORE_NAME != '' "
+            "ORDER BY STORE_NAME"
+        ).fetchall())
+
+        conn.close()
+        return jsonify({
+            "brands": brands,
+            "depts": depts,
+            "classes": classes,
+            "subclasses": subclasses,
+            "countries": countries,
+            "stores": stores,
+        })
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/ranging-dashboard")
+def ranging_dashboard_summary():
+    try:
+        where_sql, params = build_ranging_dashboard_where(request.args)
+        conn = get_db()
+
+        metrics = conn.execute(f"""
+            SELECT
+                COUNT(DISTINCT CASE WHEN STATUS = 'A' THEN OPTION_ID END) AS total_active_options,
+                COUNT(DISTINCT CASE WHEN STATUS = 'I' THEN OPTION_ID END) AS total_inactive_options,
+                COUNT(DISTINCT CASE WHEN STATUS = 'A' THEN LOC END) AS total_active_option_stores,
+                COUNT(DISTINCT CASE WHEN STATUS = 'I' THEN LOC END) AS total_inactive_option_stores,
+                NULL AS options_in_c,
+                NULL AS options_in_p,
+                NULL AS options_in_r
+            FROM mv_option_loc
+            WHERE {where_sql}
+        """, params).fetchone()
+
+        active_params = params + ['A']
+        active_where_sql = f"{where_sql} AND STATUS = ?"
+
+        by_season = rows_to_list(conn.execute(f"""
+            SELECT SEASON_CODE AS label, COUNT(DISTINCT OPTION_ID) AS count
+            FROM mv_option_loc
+            WHERE {active_where_sql} AND SEASON_CODE IS NOT NULL AND SEASON_CODE != ''
+            GROUP BY SEASON_CODE
+            ORDER BY COUNT(DISTINCT OPTION_ID) DESC, SEASON_CODE
+        """, active_params).fetchall())
+
+        by_label = rows_to_list(conn.execute(f"""
+            SELECT LABEL AS label, COUNT(DISTINCT OPTION_ID) AS count
+            FROM mv_option_loc
+            WHERE {active_where_sql} AND LABEL IS NOT NULL AND LABEL != ''
+            GROUP BY LABEL
+            ORDER BY COUNT(DISTINCT OPTION_ID) DESC, LABEL
+        """, active_params).fetchall())
+
+        by_story = rows_to_list(conn.execute(f"""
+            SELECT STORY AS label, COUNT(DISTINCT OPTION_ID) AS count
+            FROM mv_option_loc
+            WHERE {active_where_sql} AND STORY IS NOT NULL AND STORY != ''
+            GROUP BY STORY
+            ORDER BY COUNT(DISTINCT OPTION_ID) DESC, STORY
+        """, active_params).fetchall())
+
+        conn.close()
+
+        return jsonify({
+            "metrics": {
+                "total_active_options": metrics["total_active_options"] or 0,
+                "total_inactive_options": metrics["total_inactive_options"] or 0,
+                "total_active_option_stores": metrics["total_active_option_stores"] or 0,
+                "total_inactive_option_stores": metrics["total_inactive_option_stores"] or 0,
+                "options_in_r": None,
+                "options_in_c": None,
+                "options_in_p": None,
+            },
+            "overview": {
+                "by_season": by_season,
+                "by_label": by_label,
+                "by_story": by_story,
+            }
+        })
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/ranging-dashboard/distribution")
+def ranging_dashboard_distribution():
+    """
+    Returns data for charts: active vs inactive, by department, by brand
+    """
+    try:
+        where_sql, params = build_ranging_dashboard_where(request.args)
+        conn = get_db()
+
+        # Active vs Inactive
+        status_dist = rows_to_list(conn.execute(f"""
+            SELECT STATUS, COUNT(DISTINCT OPTION_ID) AS count
+            FROM mv_option_loc
+            WHERE {where_sql}
+            GROUP BY STATUS
+        """, params).fetchall())
+
+        # By Department
+        by_dept = rows_to_list(conn.execute(f"""
+            SELECT DEPT_NAME, COUNT(DISTINCT OPTION_ID) AS count
+            FROM mv_option_loc
+            WHERE {where_sql}
+            GROUP BY DEPT_NAME
+            ORDER BY count DESC
+            LIMIT 10
+        """, params).fetchall())
+
+        # By Brand
+        by_brand = rows_to_list(conn.execute(f"""
+            SELECT BRAND, COUNT(DISTINCT OPTION_ID) AS count
+            FROM mv_option_loc
+            WHERE {where_sql}
+            GROUP BY BRAND
+            ORDER BY count DESC
+            LIMIT 10
+        """, params).fetchall())
+
+        # Status breakdown by Department
+        status_by_dept = rows_to_list(conn.execute(f"""
+            SELECT DEPT_NAME, STATUS, COUNT(DISTINCT OPTION_ID) AS count
+            FROM mv_option_loc
+            WHERE {where_sql}
+            GROUP BY DEPT_NAME, STATUS
+            ORDER BY DEPT_NAME, STATUS
+        """, params).fetchall())
+
+        conn.close()
+
+        return jsonify({
+            "status_distribution": status_dist,
+            "by_department": by_dept,
+            "by_brand": by_brand,
+            "status_by_department": status_by_dept,
+        })
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/ranging-dashboard/options")
+def ranging_dashboard_options():
+    """
+    Returns detailed list of all options matching filters.
+    Optional pagination: ?limit=100&offset=0
+    """
+    try:
+        where_sql, params = build_ranging_dashboard_where(request.args)
+        limit = request.args.get("limit", default=1000, type=int)
+        offset = request.args.get("offset", default=0, type=int)
+        
+        conn = get_db()
+
+        total = conn.execute(f"""
+            SELECT COUNT(*) as total FROM mv_option_loc WHERE {where_sql}
+        """, params).fetchone()["total"]
+
+        options = rows_to_list(conn.execute(f"""
+            SELECT 
+                BRAND, OPTION_ID, OPTION_DESC, STATUS, 
+                DEPT_NAME, CLASS_NAME, SUB_NAME, 
+                SEASON_CODE, LABEL, STORY, 
+                STORE_NAME, MARKET, SELLING_UNIT_RETAIL,
+                COLOR_SHADE, SEASONALITY
+            FROM mv_option_loc
+            WHERE {where_sql}
+            ORDER BY BRAND, OPTION_ID, STORE_NAME
+            LIMIT ? OFFSET ?
+        """, params + [limit, offset]).fetchall())
+
+        conn.close()
+
+        return jsonify({
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "count": len(options),
+            "options": options
+        })
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
 # ── Admin Page ──────────────────────────────────────────────────────────────
 
 @app.route("/api/admin/graded-scopes")

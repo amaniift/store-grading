@@ -91,6 +91,17 @@
           </span>
           <span class="nav-label">Forecasts</span>
         </button>
+        <button class="nav-item" id="nav-ranging-dashboard" data-page="page-ranging-dashboard">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+            </svg>
+          </span>
+          <span class="nav-label">Ranging Dashboard</span>
+        </button>
         <button class="nav-item" id="nav-size-range-analysis" data-page="page-size-range-analysis">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
@@ -1056,6 +1067,230 @@
       </section>
 
       <!-- ════════════════════════════════════════════
+           PAGE: RANGING DASHBOARD
+      ══════════════════════════════════════════════ -->
+      <section class="page hidden" id="page-ranging-dashboard" aria-label="Ranging Dashboard">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Ranging Dashboard</h1>
+            <p class="page-desc">Option and store coverage view from mv_option_loc across active and inactive assortments.</p>
+          </div>
+        </div>
+
+        <div class="filter-panel">
+          <div class="filter-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 12px;">
+            <div class="filter-group">
+              <label for="rd-brand-select" class="filter-label">Brand</label>
+              <div class="select-wrapper">
+                <select id="rd-brand-select" class="filter-select">
+                  <option value="">All Brands</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="rd-dept-select" class="filter-label">Department</label>
+              <div class="select-wrapper">
+                <select id="rd-dept-select" class="filter-select">
+                  <option value="">All Departments</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="rd-class-select" class="filter-label">Class</label>
+              <div class="select-wrapper">
+                <select id="rd-class-select" class="filter-select" disabled>
+                  <option value="">All Classes</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="rd-subclass-select" class="filter-label">Subclass</label>
+              <div class="select-wrapper">
+                <select id="rd-subclass-select" class="filter-select" disabled>
+                  <option value="">All Subclasses</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="rd-country-select" class="filter-label">Country</label>
+              <div class="select-wrapper">
+                <select id="rd-country-select" class="filter-select">
+                  <option value="">All Countries</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="rd-store-select" class="filter-label">Store</label>
+              <div class="select-wrapper">
+                <select id="rd-store-select" class="filter-select">
+                  <option value="">All Locations</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="filter-actions">
+            <button type="button" class="btn btn-primary" id="rd-btn-apply">Apply</button>
+            <button type="button" class="btn btn-secondary" id="rd-btn-reset">Reset</button>
+          </div>
+        </div>
+
+        <div class="rd-top-cards">
+          <div class="rd-hero-card rd-hero-card-active">
+            <span class="rd-hero-label">Total Active Options</span>
+            <strong class="rd-hero-value" id="rd-total-active-options">0</strong>
+          </div>
+          <div class="rd-hero-card rd-hero-card-inactive">
+            <span class="rd-hero-label">Total Inactive Options</span>
+            <strong class="rd-hero-value" id="rd-total-inactive-options">0</strong>
+          </div>
+        </div>
+
+        <div class="rd-metric-grid">
+          <div class="rd-metric-card rd-metric-blue">
+            <span class="rd-metric-title">Total Active Option Stores</span>
+            <strong class="rd-metric-value" id="rd-total-active-option-stores">0</strong>
+          </div>
+          <div class="rd-metric-card rd-metric-orange">
+            <span class="rd-metric-title">Total Inactive Option Stores</span>
+            <strong class="rd-metric-value" id="rd-total-inactive-option-stores">0</strong>
+          </div>
+          <div class="rd-metric-card rd-metric-teal">
+            <span class="rd-metric-title">Options in R</span>
+            <strong class="rd-metric-value" id="rd-options-in-r">0</strong>
+          </div>
+          <div class="rd-metric-card rd-metric-purple">
+            <span class="rd-metric-title">Options in C</span>
+            <strong class="rd-metric-value" id="rd-options-in-c">0</strong>
+          </div>
+          <div class="rd-metric-card rd-metric-amber">
+            <span class="rd-metric-title">Options in P</span>
+            <strong class="rd-metric-value" id="rd-options-in-p">0</strong>
+          </div>
+        </div>
+
+        <div class="filter-panel">
+          <div class="filter-panel-header">
+            <div class="filter-panel-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
+              </svg>
+              <span>Active Seasons Overview</span>
+            </div>
+          </div>
+          <div class="rd-overview-grid">
+            <div class="rd-overview-col">
+              <h3>By Season</h3>
+              <ul id="rd-list-season" class="rd-overview-list"></ul>
+            </div>
+            <div class="rd-overview-col">
+              <h3>By Product Label</h3>
+              <ul id="rd-list-label" class="rd-overview-list"></ul>
+            </div>
+            <div class="rd-overview-col">
+              <h3>By Story</h3>
+              <ul id="rd-list-story" class="rd-overview-list"></ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="filter-panel">
+          <div class="filter-panel-header">
+            <div class="filter-panel-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <line x1="12" y1="2" x2="12" y2="22"></line>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+              </svg>
+              <span>Analysis & Distribution</span>
+            </div>
+          </div>
+          <div class="rd-charts-grid">
+            <div class="rd-chart-container">
+              <h3>Status Distribution</h3>
+              <canvas id="rd-chart-status"></canvas>
+            </div>
+            <div class="rd-chart-container">
+              <h3>Top 10 Departments</h3>
+              <canvas id="rd-chart-departments"></canvas>
+            </div>
+            <div class="rd-chart-container">
+              <h3>Top 10 Brands</h3>
+              <canvas id="rd-chart-brands"></canvas>
+            </div>
+            <div class="rd-chart-container">
+              <h3>Status by Department</h3>
+              <canvas id="rd-chart-status-dept"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detailed Options Section -->
+        <div class="filter-panel">
+          <div class="filter-panel-header">
+            <div class="filter-panel-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <path d="M3 9h18M3 15h18M3 3h18M3 21h18"></path>
+              </svg>
+              <span>Option Details</span>
+            </div>
+            <button type="button" class="btn btn-secondary" id="rd-btn-view-options" style="font-size: 12px; padding: 6px 12px;">
+              View Options
+            </button>
+          </div>
+          <div class="rd-details-summary">
+            <p id="rd-options-count">Load data to see details...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Modal: Detailed Options Viewer -->
+      <div class="modal hidden" id="rd-modal-options">
+        <div class="modal-overlay" id="rd-modal-overlay"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>Option Details</h2>
+            <button type="button" class="modal-close" id="rd-modal-close">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="modal-search-bar">
+              <input 
+                type="text" 
+                id="rd-options-search" 
+                class="modal-search-input" 
+                placeholder="Search by Option ID, Brand, Description, Store..."
+              >
+            </div>
+            <div class="modal-table-container">
+              <table class="modal-table" id="rd-options-table">
+                <thead>
+                  <tr>
+                    <th>Brand</th>
+                    <th>Option ID</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                    <th>Department</th>
+                    <th>Class</th>
+                    <th>Subclass</th>
+                    <th>Season</th>
+                    <th>Label</th>
+                    <th>Story</th>
+                    <th>Store</th>
+                    <th>Price</th>
+                  </tr>
+                </thead>
+                <tbody id="rd-options-tbody">
+                  <tr><td colspan="12" style="text-align: center; padding: 20px;">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+              <p id="rd-modal-row-count" style="font-size: 12px; color: var(--text-secondary);">Showing records</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════
            PAGE: SIZE RANGE ANALYSIS
       ══════════════════════════════════════════════ -->
       <section class="page hidden" id="page-size-range-analysis" aria-label="Size Range Analysis">
@@ -1480,6 +1715,26 @@
             </svg>
             <span>Caution: Deleting graded scopes will permanently remove all store assignments for that segment.</span>
           </div>
+        </div>
+
+        <div class="filter-panel admin-visibility-panel" style="margin-top:20px;">
+          <div class="filter-panel-header">
+            <div class="filter-panel-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <path d="M3 12s4-7 9-7 9 7 9 7-4 7-9 7-9-7-9-7z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span>Page Visibility</span>
+            </div>
+            <div class="admin-visibility-actions">
+              <span class="admin-visibility-hint">Changes save automatically</span>
+              <button type="button" class="btn btn-secondary" id="admin-pages-reset">Reset All</button>
+            </div>
+          </div>
+          <p class="admin-visibility-desc">
+            Choose which pages appear in the sidebar. Hidden pages stay available in the app state, and Admin remains on.
+          </p>
+          <div class="admin-page-visibility-list" id="admin-page-visibility-list" aria-label="Page visibility controls"></div>
         </div>
 
         <!-- Gradediscovery Grid -->

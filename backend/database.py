@@ -15,6 +15,7 @@ DB_PATH = os.path.join(BASE_DIR, "store_grading.db")
 
 # CSVs are looked up relative to this file's parent or the user's Downloads
 CANDIDATE_DIRS = [
+    os.path.join(BASE_DIR, ".."),
     os.path.join(BASE_DIR, "..", "data"),
     r"C:\Users\amankumar.singh\Downloads",
 ]
@@ -231,6 +232,42 @@ CREATE TABLE IF NOT EXISTS forecasts_fact (
 )
 """
 
+DDL_MV_OPTION_LOC = """
+CREATE TABLE IF NOT EXISTS mv_option_loc (
+    BRAND                  TEXT,
+    BRAND_ID               INTEGER,
+    OPTION_ID              TEXT,
+    EFFECTIVE_DATE_TIME    TEXT,
+    DISCONTINUE_DATE_TIME  TEXT,
+    CURRENCY_CODE          TEXT,
+    LOC                    INTEGER,
+    LOC_TYPE               TEXT,
+    STATUS                 TEXT,
+    CLEAR_IND              TEXT,
+    STYLE                  TEXT,
+    OPTION_DESC            TEXT,
+    DEPT                   INTEGER,
+    DEPT_NAME              TEXT,
+    CLASS                  INTEGER,
+    CLASS_NAME             TEXT,
+    SUBCLASS               INTEGER,
+    SUB_NAME               TEXT,
+    SEASON_CODE            TEXT,
+    SEASONALITY            TEXT,
+    LABEL                  TEXT,
+    STORY                  TEXT,
+    COLOR_SHADE            TEXT,
+    STORE_NAME             TEXT,
+    MARKET                 TEXT,
+    AREA_NAME              TEXT,
+    CHAIN_NAME             TEXT,
+    VPN                    TEXT,
+    CHANNEL                TEXT,
+    PROMO_SELLING_RETAIL   REAL,
+    SELLING_UNIT_RETAIL    REAL
+)
+"""
+
 # ─── Indexes ──────────────────────────────────────────────────────────────────
 IDX_SALES_PRODUCT_STORE = "CREATE INDEX IF NOT EXISTS idx_sales_product_store ON sales_hist_fact (OPTION_ID, STORE)"
 IDX_SALES_TIME = "CREATE INDEX IF NOT EXISTS idx_sales_time ON sales_hist_fact (TIME_ID)"
@@ -299,7 +336,15 @@ def init_db(force_reload: bool = False) -> None:
     cur = conn.cursor()
 
     print("Creating tables...")
-    for ddl in [DDL_SALES_HIST_FACT, DDL_PRODUCT_OPTION_DIM, DDL_LOCATION_ST_MASTER, DDL_STORE_GRADE, DDL_GRADING_RUN_LOG, DDL_FORECASTS_FACT]:
+    for ddl in [
+        DDL_SALES_HIST_FACT,
+        DDL_PRODUCT_OPTION_DIM,
+        DDL_LOCATION_ST_MASTER,
+        DDL_STORE_GRADE,
+        DDL_GRADING_RUN_LOG,
+        DDL_FORECASTS_FACT,
+        DDL_MV_OPTION_LOC,
+    ]:
         cur.execute(ddl)
     
     print("Creating indexes...")
@@ -318,6 +363,7 @@ def init_db(force_reload: bool = False) -> None:
         ("sales_hist_fact",   "sales_hist_fact.csv"),
         ("product_option_dim","product_option_dim.csv"),
         ("location_st_master","location_st_master.csv"),
+        ("mv_option_loc",     "mv_option_loc.csv"),
     ]:
         row_count = cur.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
         if row_count > 0 and not force_reload:

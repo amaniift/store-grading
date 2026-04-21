@@ -86,12 +86,88 @@ const sidebar = $('sidebar');
 const sidebarToggle = $('sidebar-toggle');
 let sidebarCollapsed = false;
 
-sidebarToggle.addEventListener('click', () => {
-  sidebarCollapsed = !sidebarCollapsed;
-  sidebar.classList.toggle('collapsed', sidebarCollapsed);
-});
+const PAGE_VISIBILITY_STORAGE_KEY = 'retail-analytics.pageVisibility.v1';
+const PAGE_VISIBILITY_CONFIG = [
+  { id: 'page-store-grading', label: 'Store Grading', description: 'K-means grading and grade management.', sidebar: true },
+  { id: 'page-product-master', label: 'Product Master', description: 'Browse and filter product dimension records.', sidebar: true },
+  { id: 'page-location-master', label: 'Location Master', description: 'Inspect store and location metadata.', sidebar: true },
+  { id: 'page-sales-history', label: 'Sales History', description: 'Analyze sales by hierarchy and location.', sidebar: true },
+  { id: 'page-forecasts', label: 'Forecasts', description: 'Run and review forecast scenarios.', sidebar: true },
+  { id: 'page-ranging-dashboard', label: 'Ranging Dashboard', description: 'Track active/inactive options and R/C/P mix.', sidebar: true },
+  { id: 'page-size-range-analysis', label: 'Size Range Analysis', description: 'Manage size profile analysis workflows.', sidebar: true },
+  { id: 'page-demand-filtering-config', label: 'Demand Filtering Config', description: 'Configure demand filtering rules.', sidebar: false },
+  { id: 'page-attach-size-range', label: 'Attach Size Range', description: 'Review and attach size range mappings.', sidebar: false },
+  { id: 'page-admin', label: 'Admin', description: 'System maintenance and configuration.', sidebar: true, locked: true },
+];
 
-function navigateTo(pageId) {
+const PAGE_VISIBILITY_DEFAULTS = Object.freeze(
+  Object.fromEntries(PAGE_VISIBILITY_CONFIG.map(page => [page.id, true]))
+);
+
+let pageVisibilityState = readPageVisibilityState();
+
+function readPageVisibilityState() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PAGE_VISIBILITY_STORAGE_KEY) || '{}');
+    return { ...PAGE_VISIBILITY_DEFAULTS, ...(parsed && typeof parsed === 'object' ? parsed : {}) };
+  } catch {
+    return { ...PAGE_VISIBILITY_DEFAULTS };
+  }
+}
+
+function savePageVisibilityState() {
+  localStorage.setItem(PAGE_VISIBILITY_STORAGE_KEY, JSON.stringify(pageVisibilityState));
+}
+
+function isPageVisible(pageId) {
+  return pageVisibilityState[pageId] !== false;
+}
+
+function getPageMeta(pageId) {
+  return PAGE_VISIBILITY_CONFIG.find(page => page.id === pageId);
+}
+
+function getFirstVisiblePageId() {
+  const visiblePage = PAGE_VISIBILITY_CONFIG.find(page => isPageVisible(page.id));
+  return visiblePage ? visiblePage.id : null;
+}
+
+function syncPageVisibilityUI() {
+  PAGE_VISIBILITY_CONFIG.forEach(page => {
+    const navItem = document.querySelector(`.nav-item[data-page="${page.id}"]`);
+    const pageSection = $(page.id);
+    const visible = isPageVisible(page.id);
+
+    if (navItem) navItem.classList.toggle('is-hidden', !visible || !page.sidebar);
+    if (pageSection) pageSection.classList.toggle('hidden', !visible);
+  });
+
+  const activeNav = document.querySelector('.nav-item.active');
+  if (activeNav && activeNav.classList.contains('is-hidden')) {
+    activeNav.classList.remove('active');
+    activeNav.removeAttribute('aria-current');
+  }
+}
+
+function navigateTo(pageId, options = {}) {
+  const targetVisible = isPageVisible(pageId);
+  if (!targetVisible) {
+    const fallbackPageId = getFirstVisiblePageId();
+    if (options.notifyIfHidden) {
+      const hiddenPage = getPageMeta(pageId);
+      const fallbackPage = fallbackPageId ? getPageMeta(fallbackPageId) : null;
+      showToast(
+        'info',
+        'Page Hidden',
+        fallbackPage
+          ? `${hiddenPage ? hiddenPage.label : 'That page'} is turned off in Admin. Showing ${fallbackPage.label} instead.`
+          : 'That page is turned off in Admin.'
+      );
+    }
+    if (!fallbackPageId) return;
+    pageId = fallbackPageId;
+  }
+
   document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
   document.querySelectorAll('.nav-item').forEach(n => {
     n.classList.remove('active');
@@ -109,8 +185,19 @@ function navigateTo(pageId) {
   }
 }
 
+sidebarToggle.addEventListener('click', () => {
+  sidebarCollapsed = !sidebarCollapsed;
+  sidebar.classList.toggle('collapsed', sidebarCollapsed);
+});
+
+syncPageVisibilityUI();
+if (!isPageVisible(document.querySelector('.nav-item.active')?.dataset.page || 'page-store-grading')) {
+  const fallbackPageId = getFirstVisiblePageId();
+  if (fallbackPageId) navigateTo(fallbackPageId);
+}
+
 document.querySelectorAll('.nav-item').forEach(btn => {
-  btn.addEventListener('click', () => navigateTo(btn.dataset.page));
+  btn.addEventListener('click', () => navigateTo(btn.dataset.page, { notifyIfHidden: true }));
 });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -225,6 +312,572 @@ async function loadPmBrands() {
       if (adminBrandSel) adminBrandSel.appendChild(new Option(b, b));
     });
   } catch { }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ══════════════ PAGE: RANGING DASHBOARD ═══════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+
+const rdState = {
+  filtersMeta: {
+    brands: [],
+    depts: [],
+    classes: [],
+    subclasses: [],
+    countries: [],
+    stores: [],
+  },
+  selected: {
+    brand: '',
+    dept: '',
+    class: '',
+    subclass: '',
+    country: '',
+    store: '',
+  },
+};
+
+function populateRangingClasses(dept) {
+  const classSel = $('rd-class-select');
+  const subSel = $('rd-subclass-select');
+  if (!classSel || !subSel) return;
+
+  classSel.innerHTML = '<option value="">All Classes</option>';
+  classSel.disabled = !dept;
+  subSel.innerHTML = '<option value="">All Subclasses</option>';
+  subSel.disabled = true;
+
+  if (!dept) return;
+  rdState.filtersMeta.classes
+    .filter(c => String(c.DEPT) === String(dept))
+    .forEach(c => classSel.appendChild(new Option(c.CLASS_NAME ? `${c.CLASS} - ${c.CLASS_NAME}` : `${c.CLASS}`, c.CLASS)));
+}
+
+function populateRangingSubclasses(dept, classId) {
+  const subSel = $('rd-subclass-select');
+  if (!subSel) return;
+
+  subSel.innerHTML = '<option value="">All Subclasses</option>';
+  const hasHierarchy = dept && classId;
+  subSel.disabled = !hasHierarchy;
+  if (!hasHierarchy) return;
+
+  rdState.filtersMeta.subclasses
+    .filter(s => String(s.DEPT) === String(dept) && String(s.CLASS) === String(classId))
+    .forEach(s => subSel.appendChild(new Option(s.SUB_NAME ? `${s.SUBCLASS} - ${s.SUB_NAME}` : `${s.SUBCLASS}`, s.SUBCLASS)));
+}
+
+function renderRangingOverviewList(listId, items) {
+  const ul = $(listId);
+  if (!ul) return;
+  if (!items || !items.length) {
+    ul.innerHTML = '<li>No data</li>';
+    return;
+  }
+  ul.innerHTML = items
+    .map(item => `<li><span>${esc(item.label)}</span><strong>${fmt(item.count)}</strong></li>`)
+    .join('');
+}
+
+function renderRangingDashboard(data) {
+  const metrics = data.metrics || {};
+  const displayNull = value => (value == null ? 'null' : fmt(value));
+
+  $('rd-total-active-options').textContent = fmt(metrics.total_active_options || 0);
+  $('rd-total-inactive-options').textContent = fmt(metrics.total_inactive_options || 0);
+  $('rd-total-active-option-stores').textContent = fmt(metrics.total_active_option_stores || 0);
+  $('rd-total-inactive-option-stores').textContent = fmt(metrics.total_inactive_option_stores || 0);
+  $('rd-options-in-r').textContent = displayNull(metrics.options_in_r);
+  $('rd-options-in-c').textContent = displayNull(metrics.options_in_c);
+  $('rd-options-in-p').textContent = displayNull(metrics.options_in_p);
+
+  const overview = data.overview || {};
+  renderRangingOverviewList('rd-list-season', overview.by_season || []);
+  renderRangingOverviewList('rd-list-label', overview.by_label || []);
+  renderRangingOverviewList('rd-list-story', overview.by_story || []);
+}
+
+async function fetchRangingDashboard() {
+  const params = new URLSearchParams();
+  Object.entries(rdState.selected).forEach(([key, value]) => {
+    if (value) params.set(key, value);
+  });
+
+  $('rd-btn-apply').disabled = true;
+  $('rd-btn-apply').textContent = 'Applying...';
+  try {
+    const data = await apiFetch(`/api/ranging-dashboard?${params.toString()}`);
+    renderRangingDashboard(data);
+    await fetchAndRenderCharts();
+  } catch (e) {
+    showToast('error', 'Ranging Dashboard Error', e.message);
+  } finally {
+    $('rd-btn-apply').disabled = false;
+    $('rd-btn-apply').textContent = 'Apply';
+  }
+}
+
+// Charts handling
+let rdChartInstances = {};
+
+async function fetchAndRenderCharts() {
+  const params = new URLSearchParams();
+  Object.entries(rdState.selected).forEach(([key, value]) => {
+    if (value) params.set(key, value);
+  });
+
+  try {
+    const data = await apiFetch(`/api/ranging-dashboard/distribution?${params.toString()}`);
+    renderCharts(data);
+  } catch (e) {
+    console.error('Chart fetch error:', e);
+  }
+}
+
+function destroyCharts() {
+  Object.keys(rdChartInstances).forEach(key => {
+    if (rdChartInstances[key]) {
+      rdChartInstances[key].destroy();
+    }
+  });
+  rdChartInstances = {};
+}
+
+function renderCharts(data) {
+  destroyCharts();
+  
+  const chartDefaults = {
+    font: { family: "'Inter', sans-serif", size: 13, weight: '500', color: 'var(--text-primary)' },
+    color: { text: '#e2e8f0', textSecondary: '#94a3b8', border: 'rgba(255, 255, 255, 0.06)' }
+  };
+
+  // Status Distribution Pie
+  const statusData = data.status_distribution || [];
+  const statusCtx = $('rd-chart-status');
+  if (statusCtx) {
+    const labels = statusData.map(s => s.STATUS === 'A' ? 'Active' : 'Inactive');
+    const counts = statusData.map(s => s.count);
+    const colors = ['#10b981', '#ef4444'];
+    rdChartInstances.status = new Chart(statusCtx, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: counts,
+          backgroundColor: colors.slice(0, counts.length),
+          borderColor: 'var(--bg-surface)',
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: { 
+            position: 'bottom', 
+            labels: { 
+              color: chartDefaults.color.text, 
+              padding: 16,
+              font: { size: 13, weight: '500' },
+              generateLabels: (chart) => {
+                const data = chart.data;
+                return data.labels.map((label, i) => ({
+                  text: `${label} (${data.datasets[0].data[i]})`,
+                  fillStyle: data.datasets[0].backgroundColor[i],
+                  hidden: false,
+                  index: i
+                }));
+              }
+            } 
+          },
+          tooltip: { 
+            backgroundColor: 'rgba(0,0,0,0.9)',
+            titleFont: { size: 14, weight: 'bold' },
+            bodyFont: { size: 13 },
+            padding: 12,
+            titleColor: '#fff',
+            bodyColor: '#fff',
+            borderColor: 'rgba(255,255,255,0.2)',
+            borderWidth: 1,
+            callbacks: {
+              label: (context) => `Count: ${fmt(context.parsed)}`
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // Top Departments Bar
+  const deptData = data.by_department || [];
+  const deptCtx = $('rd-chart-departments');
+  if (deptCtx) {
+    rdChartInstances.dept = new Chart(deptCtx, {
+      type: 'bar',
+      data: {
+        labels: deptData.map(d => d.DEPT_NAME ? d.DEPT_NAME.substring(0, 20) : 'N/A'),
+        datasets: [{
+          label: 'Options',
+          data: deptData.map(d => d.count),
+          backgroundColor: '#3b82f6',
+          borderColor: 'rgba(59, 130, 246, 0.5)',
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: { 
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(0,0,0,0.9)',
+            titleFont: { size: 14, weight: 'bold' },
+            bodyFont: { size: 13 },
+            padding: 12,
+            titleColor: '#fff',
+            bodyColor: '#fff',
+            borderColor: 'rgba(255,255,255,0.2)',
+            borderWidth: 1,
+            callbacks: { label: (c) => `Options: ${fmt(c.parsed.x)}` }
+          }
+        },
+        scales: { 
+          x: { 
+            ticks: { color: chartDefaults.color.text, font: { size: 12, weight: '500' } }, 
+            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+          }, 
+          y: { 
+            ticks: { color: chartDefaults.color.text, font: { size: 12, weight: '500' } },
+            grid: { display: false }
+          } 
+        }
+      }
+    });
+  }
+
+  // Top Brands Bar
+  const brandData = data.by_brand || [];
+  const brandCtx = $('rd-chart-brands');
+  if (brandCtx) {
+    rdChartInstances.brand = new Chart(brandCtx, {
+      type: 'bar',
+      data: {
+        labels: brandData.map(b => b.BRAND ? b.BRAND.substring(0, 20) : 'N/A'),
+        datasets: [{
+          label: 'Options',
+          data: brandData.map(b => b.count),
+          backgroundColor: '#f97316',
+          borderColor: 'rgba(249, 115, 22, 0.5)',
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: { 
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(0,0,0,0.9)',
+            titleFont: { size: 14, weight: 'bold' },
+            bodyFont: { size: 13 },
+            padding: 12,
+            titleColor: '#fff',
+            bodyColor: '#fff',
+            borderColor: 'rgba(255,255,255,0.2)',
+            borderWidth: 1,
+            callbacks: { label: (c) => `Options: ${fmt(c.parsed.x)}` }
+          }
+        },
+        scales: { 
+          x: { 
+            ticks: { color: chartDefaults.color.text, font: { size: 12, weight: '500' } }, 
+            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+          }, 
+          y: { 
+            ticks: { color: chartDefaults.color.text, font: { size: 12, weight: '500' } },
+            grid: { display: false }
+          } 
+        }
+      }
+    });
+  }
+
+  // Status by Department Stacked Bar
+  const statusByDeptData = data.status_by_department || [];
+  const statusByDeptCtx = $('rd-chart-status-dept');
+  if (statusByDeptCtx && statusByDeptData.length > 0) {
+    const deptNames = [...new Set(statusByDeptData.map(s => s.DEPT_NAME))];
+    const activeData = deptNames.map(d => {
+      const found = statusByDeptData.find(s => s.DEPT_NAME === d && s.STATUS === 'A');
+      return found ? found.count : 0;
+    });
+    const inactiveData = deptNames.map(d => {
+      const found = statusByDeptData.find(s => s.DEPT_NAME === d && s.STATUS === 'I');
+      return found ? found.count : 0;
+    });
+
+    rdChartInstances.statusDept = new Chart(statusByDeptCtx, {
+      type: 'bar',
+      data: {
+        labels: deptNames.map(d => d ? d.substring(0, 20) : 'N/A'),
+        datasets: [
+          { label: 'Active', data: activeData, backgroundColor: '#10b981', borderWidth: 0 },
+          { label: 'Inactive', data: inactiveData, backgroundColor: '#ef4444', borderWidth: 0 }
+        ]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+          x: { 
+            stacked: true, 
+            ticks: { color: chartDefaults.color.text, font: { size: 12, weight: '500' } }, 
+            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+          },
+          y: { 
+            stacked: true, 
+            ticks: { color: chartDefaults.color.text, font: { size: 12, weight: '500' } },
+            grid: { display: false }
+          }
+        },
+        plugins: { 
+          legend: { 
+            position: 'top', 
+            labels: { 
+              color: chartDefaults.color.text, 
+              padding: 16,
+              font: { size: 13, weight: '500' }
+            } 
+          },
+          tooltip: {
+            backgroundColor: 'rgba(0,0,0,0.9)',
+            titleFont: { size: 14, weight: 'bold' },
+            bodyFont: { size: 13 },
+            padding: 12,
+            titleColor: '#fff',
+            bodyColor: '#fff',
+            borderColor: 'rgba(255,255,255,0.2)',
+            borderWidth: 1,
+            callbacks: { label: (c) => `${c.dataset.label}: ${fmt(c.parsed.x)}` }
+          }
+        }
+      }
+    });
+  }
+}
+
+// Modal handling
+let rdAllOptions = [];
+let rdFilteredOptions = [];
+let rdCurrentPage = 1;
+let rdPageSize = 100;
+let rdTotalRecords = 0;
+
+async function loadOptionsData(page = 1) {
+  const params = new URLSearchParams();
+  Object.entries(rdState.selected).forEach(([key, value]) => {
+    if (value) params.set(key, value);
+  });
+  
+  const offset = (page - 1) * rdPageSize;
+  params.set('limit', rdPageSize);
+  params.set('offset', offset);
+
+  const tbody = $('rd-options-tbody');
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 40px;"><div class="rd-loading-spinner"></div><p style="margin-top: 12px; color: var(--text-secondary);">Loading options...</p></td></tr>';
+  }
+
+  try {
+    const data = await apiFetch(`/api/ranging-dashboard/options?${params.toString()}`);
+    rdTotalRecords = data.total || 0;
+    rdCurrentPage = page;
+    rdAllOptions = data.options || [];
+    rdFilteredOptions = [...rdAllOptions];
+    
+    updatePaginationUI();
+    renderOptionsTable(rdFilteredOptions);
+  } catch (e) {
+    showToast('error', 'Options Load Error', e.message);
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 20px; color: var(--error);">Error loading options. Please try again.</td></tr>';
+    }
+  }
+}
+
+function updatePaginationUI() {
+  const totalPages = Math.ceil(rdTotalRecords / rdPageSize);
+  const showing = (rdCurrentPage - 1) * rdPageSize + 1;
+  const until = Math.min(rdCurrentPage * rdPageSize, rdTotalRecords);
+  
+  let paginationHTML = `Showing ${showing} to ${until} of ${fmt(rdTotalRecords)} options`;
+  
+  if (totalPages > 1) {
+    paginationHTML += ' | Page ' + rdCurrentPage + ' of ' + totalPages;
+    if (rdCurrentPage > 1) {
+      paginationHTML += ` | <button class="rd-pagination-btn" onclick="loadOptionsData(${rdCurrentPage - 1})">← Previous</button>`;
+    }
+    if (rdCurrentPage < totalPages) {
+      paginationHTML += ` | <button class="rd-pagination-btn" onclick="loadOptionsData(${rdCurrentPage + 1})">Next →</button>`;
+    }
+  }
+  
+  const footerEl = $('rd-modal-row-count');
+  if (footerEl) {
+    footerEl.innerHTML = paginationHTML;
+  }
+}
+
+function renderOptionsTable(options) {
+  const tbody = $('rd-options-tbody');
+  if (!tbody) return;
+
+  if (!options || options.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 20px; color: var(--text-secondary);">No options found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = options
+    .map(opt => `
+      <tr>
+        <td><strong>${esc(opt.BRAND || '')}</strong></td>
+        <td><code style="background: rgba(59, 130, 246, 0.1); padding: 2px 6px; border-radius: 3px; color: #3b82f6;">${esc(opt.OPTION_ID || '')}</code></td>
+        <td title="${esc(opt.OPTION_DESC || '')}" style="max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${esc((opt.OPTION_DESC || '').substring(0, 30))}</td>
+        <td><span style="padding: 4px 10px; border-radius: 4px; font-weight: 600; background: ${opt.STATUS === 'A' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}; color: ${opt.STATUS === 'A' ? '#10b981' : '#ef4444'}; white-space: nowrap;">${opt.STATUS === 'A' ? '✓ Active' : '✗ Inactive'}</span></td>
+        <td>${esc(opt.DEPT_NAME || '')}</td>
+        <td>${esc(opt.CLASS_NAME || '')}</td>
+        <td>${esc(opt.SUB_NAME || '')}</td>
+        <td><code style="font-size: 11px;">${esc(opt.SEASON_CODE || '')}</code></td>
+        <td>${esc(opt.LABEL || '')}</td>
+        <td>${esc(opt.STORY || '')}</td>
+        <td><strong>${esc(opt.STORE_NAME || '')}</strong></td>
+        <td>${opt.SELLING_UNIT_RETAIL ? '$' + fmt(opt.SELLING_UNIT_RETAIL) : '—'}</td>
+      </tr>
+    `)
+    .join('');
+
+  $('rd-modal-row-count').innerHTML = `Page ${rdCurrentPage} loaded successfully`;
+}
+
+function searchOptions() {
+  const query = $('rd-options-search').value.toLowerCase().trim();
+  if (!query) {
+    rdFilteredOptions = [...rdAllOptions];
+  } else {
+    rdFilteredOptions = rdAllOptions.filter(opt => {
+      const searchText = `${opt.BRAND || ''} ${opt.OPTION_ID || ''} ${opt.OPTION_DESC || ''} ${opt.STORE_NAME || ''} ${opt.DEPT_NAME || ''}`.toLowerCase();
+      return searchText.includes(query);
+    });
+  }
+  renderOptionsTable(rdFilteredOptions);
+  const resultCount = rdFilteredOptions.length;
+  const pageInfo = $('rd-modal-row-count');
+  if (pageInfo) {
+    if (query) {
+      pageInfo.innerHTML = `Found ${resultCount} matching results on this page`;
+    } else {
+      updatePaginationUI();
+    }
+  }
+}
+
+function openRangingModal() {
+  $('rd-modal-options').classList.remove('hidden');
+  $('rd-options-search').value = '';
+  rdCurrentPage = 1;
+  loadOptionsData(1);
+}
+
+function closeRangingModal() {
+  $('rd-modal-options').classList.add('hidden');
+  $('rd-options-search').value = '';
+}
+
+
+async function initRangingDashboard() {
+  if (!$('page-ranging-dashboard')) return;
+
+  try {
+    const meta = await apiFetch('/api/ranging-dashboard/filters');
+    rdState.filtersMeta = meta;
+
+    const brandSel = $('rd-brand-select');
+    brandSel.innerHTML = '<option value="">All Brands</option>';
+    (meta.brands || []).forEach(brand => brandSel.appendChild(new Option(brand, brand)));
+
+    const deptSel = $('rd-dept-select');
+    deptSel.innerHTML = '<option value="">All Departments</option>';
+    (meta.depts || []).forEach(d => {
+      deptSel.appendChild(new Option(d.DEPT_NAME ? `${d.DEPT} - ${d.DEPT_NAME}` : `${d.DEPT}`, d.DEPT));
+    });
+
+    const countrySel = $('rd-country-select');
+    countrySel.innerHTML = '<option value="">All Countries</option>';
+    (meta.countries || []).forEach(country => countrySel.appendChild(new Option(country, country)));
+
+    const storeSel = $('rd-store-select');
+    storeSel.innerHTML = '<option value="">All Locations</option>';
+    (meta.stores || []).forEach(store => {
+      storeSel.appendChild(new Option(store.STORE_NAME || store.LOC, store.STORE_NAME || ''));
+    });
+
+    populateRangingClasses('');
+    renderRangingOverviewList('rd-list-season', []);
+    renderRangingOverviewList('rd-list-label', []);
+    renderRangingOverviewList('rd-list-story', []);
+  } catch (e) {
+    showToast('error', 'Ranging Setup Error', e.message);
+    return;
+  }
+
+  $('rd-dept-select').addEventListener('change', () => {
+    rdState.selected.dept = $('rd-dept-select').value || '';
+    rdState.selected.class = '';
+    rdState.selected.subclass = '';
+    $('rd-class-select').value = '';
+    $('rd-subclass-select').value = '';
+    populateRangingClasses(rdState.selected.dept);
+  });
+
+  $('rd-class-select').addEventListener('change', () => {
+    rdState.selected.class = $('rd-class-select').value || '';
+    rdState.selected.subclass = '';
+    $('rd-subclass-select').value = '';
+    populateRangingSubclasses(rdState.selected.dept, rdState.selected.class);
+  });
+
+  $('rd-subclass-select').addEventListener('change', () => { rdState.selected.subclass = $('rd-subclass-select').value || ''; });
+  $('rd-brand-select').addEventListener('change', () => { rdState.selected.brand = $('rd-brand-select').value || ''; });
+  $('rd-country-select').addEventListener('change', () => { rdState.selected.country = $('rd-country-select').value || ''; });
+  $('rd-store-select').addEventListener('change', () => { rdState.selected.store = $('rd-store-select').value || ''; });
+
+  $('rd-btn-apply').addEventListener('click', () => fetchRangingDashboard());
+  $('rd-btn-reset').addEventListener('click', () => {
+    rdState.selected = { brand: '', dept: '', class: '', subclass: '', country: '', store: '' };
+    ['rd-brand-select', 'rd-dept-select', 'rd-class-select', 'rd-subclass-select', 'rd-country-select', 'rd-store-select']
+      .forEach(id => { $(id).value = ''; });
+    populateRangingClasses('');
+    fetchRangingDashboard();
+  });
+
+  // Modal event listeners
+  if ($('rd-btn-view-options')) {
+    $('rd-btn-view-options').addEventListener('click', openRangingModal);
+  }
+  if ($('rd-modal-close')) {
+    $('rd-modal-close').addEventListener('click', closeRangingModal);
+  }
+  if ($('rd-modal-overlay')) {
+    $('rd-modal-overlay').addEventListener('click', closeRangingModal);
+  }
+  if ($('rd-options-search')) {
+    $('rd-options-search').addEventListener('input', searchOptions);
+  }
+
+  fetchRangingDashboard();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1006,6 +1659,74 @@ const adminState = {
   selected: new Set() // stores JSON strings of scope objects
 };
 
+function renderPageVisibilityControls() {
+  const list = $('admin-page-visibility-list');
+  if (!list) return;
+
+  list.innerHTML = PAGE_VISIBILITY_CONFIG.map(page => {
+    const enabled = isPageVisible(page.id);
+    const lockNote = page.locked ? '<span class="page-visibility-pill">Always on</span>' : '';
+
+    return `
+      <label class="page-visibility-item ${page.locked ? 'locked' : ''}">
+        <div class="page-visibility-meta">
+          <div class="page-visibility-title-row">
+            <span class="page-visibility-title">${esc(page.label)}</span>
+            ${lockNote}
+          </div>
+          <span class="page-visibility-desc">${esc(page.description)}</span>
+        </div>
+        <div class="page-visibility-switch-wrap">
+          <input
+            type="checkbox"
+            class="page-visibility-switch"
+            data-page-id="${page.id}"
+            ${enabled ? 'checked' : ''}
+            ${page.locked ? 'disabled' : ''}
+            aria-label="Toggle ${esc(page.label)} visibility"
+          >
+        </div>
+      </label>
+    `;
+  }).join('');
+}
+
+function resetPageVisibilityControls() {
+  pageVisibilityState = { ...PAGE_VISIBILITY_DEFAULTS };
+  savePageVisibilityState();
+  renderPageVisibilityControls();
+  syncPageVisibilityUI();
+}
+
+if ($('admin-page-visibility-list')) {
+  $('admin-page-visibility-list').addEventListener('change', (e) => {
+    const switchEl = e.target.closest('.page-visibility-switch');
+    if (!switchEl || switchEl.disabled) return;
+
+    const pageId = switchEl.dataset.pageId;
+    const pageMeta = getPageMeta(pageId);
+    if (!pageMeta) return;
+
+    pageVisibilityState[pageId] = switchEl.checked;
+    savePageVisibilityState();
+    syncPageVisibilityUI();
+
+    const currentPageId = document.querySelector('.nav-item.active')?.dataset.page;
+    if (currentPageId && !isPageVisible(currentPageId)) {
+      const fallbackPageId = getFirstVisiblePageId();
+      if (fallbackPageId) navigateTo(fallbackPageId);
+    }
+  });
+}
+
+if ($('admin-pages-reset')) {
+  $('admin-pages-reset').addEventListener('click', (e) => {
+    e.preventDefault();
+    resetPageVisibilityControls();
+    showToast('success', 'Pages Restored', 'All pages are now visible again.');
+  });
+}
+
 if ($('admin-brand-select')) {
   $('admin-brand-select').addEventListener('change', () => fetchGradedScopes());
 }
@@ -1195,6 +1916,8 @@ if ($('admin-delete-confirm')) {
     }
   });
 }
+
+renderPageVisibilityControls();
 
 // ═══════════════════════════════════════════════════════════════════
 // ══════════════ PAGE: FORECASTS ══════════════════════════════════
@@ -3074,6 +3797,7 @@ async function init() {
   await checkHealth();
   await loadFilters();
   await initForecastFilters();
+  await initRangingDashboard();
   initSraPage();
   initDfcPage();
   initAttachSizeRangePage();
