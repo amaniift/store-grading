@@ -14,3 +14,22 @@ venv/
 *.db-shm
 *.db-wal
 scratch/
+
+# Data exports and local datasets
+*.csv
+
+# Logs
+*.log
+
+# Temp and local artifacts
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+~$*
+tmp/
+temp/
+
+# Local throwaway test scripts
+backend/test_route.py
