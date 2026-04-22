@@ -371,238 +371,85 @@ def ranging_dashboard_summary():
         return jsonify({"error": str(e)}), 500
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-# ════════ RANGING DASHBOARD-1 (Advanced Multi-dimensional Analysis) ══════════
-# ═════════════════════════════════════════════════════════════════════════════
-
-def build_rd1_where(args):
-    """Build WHERE clause for RD1 with extended filters"""
-    clauses = ["1=1"]
-    params = []
-
-    brand = args.get("brand", type=str)
-    dept = args.get("dept", type=int)
-    class_ = args.get("class", type=int)
-    subclass = args.get("subclass", type=int)
-    country = args.get("country", type=str)
-    store = args.get("store", type=str)
-    season = args.get("season", type=str)
-    label = args.get("label", type=str)
-    story = args.get("story", type=str)
-    status = args.get("status", type=str)
-
-    if brand:
-        clauses.append("BRAND = ?")
-        params.append(brand)
-    if dept is not None:
-        clauses.append("DEPT = ?")
-        params.append(dept)
-    if class_ is not None:
-        clauses.append("CLASS = ?")
-        params.append(class_)
-    if subclass is not None:
-        clauses.append("SUBCLASS = ?")
-        params.append(subclass)
-    if country:
-        clauses.append("AREA_NAME = ?")
-        params.append(country)
-    if store:
-        clauses.append("STORE_NAME = ?")
-        params.append(store)
-    if season:
-        clauses.append("SEASON_CODE = ?")
-        params.append(season)
-    if label:
-        clauses.append("LABEL = ?")
-        params.append(label)
-    if story:
-        clauses.append("STORY = ?")
-        params.append(story)
-    if status:
-        clauses.append("STATUS = ?")
-        params.append(status)
-
-    return " AND ".join(clauses), params
-
-
-@app.route("/api/ranging-dashboard-1/filters")
-def rd1_filters():
-    """Get available filter values for RD1"""
+@app.route("/api/ranging-dashboard/drilldown")
+def ranging_dashboard_drilldown():
     try:
+        where_sql, params = build_ranging_dashboard_where(request.args)
+
+        # Additional drill filters from clicked metric/list row
+        status = request.args.get("status", type=str)
+        season = request.args.get("season", type=str)
+        label = request.args.get("label", type=str)
+        story = request.args.get("story", type=str)
+
+        if status:
+            where_sql += " AND STATUS = ?"
+            params.append(status)
+        if season:
+            where_sql += " AND SEASON_CODE = ?"
+            params.append(season)
+        if label:
+            where_sql += " AND LABEL = ?"
+            params.append(label)
+        if story:
+            where_sql += " AND STORY = ?"
+            params.append(story)
+
+        page = max(request.args.get("page", default=1, type=int), 1)
+        page_size = min(max(request.args.get("page_size", default=100, type=int), 10), 500)
+        offset = (page - 1) * page_size
+
         conn = get_db()
 
-        brands = [r["BRAND"] for r in conn.execute(
-            "SELECT DISTINCT BRAND FROM mv_option_loc WHERE BRAND IS NOT NULL AND BRAND != '' ORDER BY BRAND"
-        ).fetchall()]
+        # Keep one row per option-store pair with useful descriptive columns.
+        details_cte = f"""
+            WITH details AS (
+                SELECT DISTINCT
+                    OPTION_ID,
+                    LOC,
+                    BRAND,
+                    OPTION_DESC,
+                    STATUS,
+                    DEPT,
+                    DEPT_NAME,
+                    CLASS,
+                    CLASS_NAME,
+                    SUBCLASS,
+                    SUB_NAME,
+                    SEASON_CODE,
+                    LABEL,
+                    STORY,
+                    AREA_NAME,
+                    STORE_NAME,
+                    SELLING_UNIT_RETAIL
+                FROM mv_option_loc
+                WHERE {where_sql}
+            )
+        """
 
-        depts = rows_to_list(conn.execute(
-            "SELECT DISTINCT DEPT, DEPT_NAME FROM mv_option_loc WHERE DEPT IS NOT NULL ORDER BY DEPT"
+        total = conn.execute(
+            details_cte + "SELECT COUNT(*) AS total_rows FROM details",
+            params,
+        ).fetchone()["total_rows"]
+
+        rows = rows_to_list(conn.execute(
+            details_cte + """
+                SELECT *
+                FROM details
+                ORDER BY OPTION_ID, LOC
+                LIMIT ? OFFSET ?
+            """,
+            params + [page_size, offset],
         ).fetchall())
-
-        classes = rows_to_list(conn.execute(
-            "SELECT DISTINCT DEPT, CLASS, CLASS_NAME FROM mv_option_loc WHERE CLASS IS NOT NULL ORDER BY DEPT, CLASS"
-        ).fetchall())
-
-        subclasses = rows_to_list(conn.execute(
-            "SELECT DISTINCT DEPT, CLASS, SUBCLASS, SUB_NAME FROM mv_option_loc WHERE SUBCLASS IS NOT NULL ORDER BY DEPT, CLASS, SUBCLASS"
-        ).fetchall())
-
-        countries = [r["AREA_NAME"] for r in conn.execute(
-            "SELECT DISTINCT AREA_NAME FROM mv_option_loc WHERE AREA_NAME IS NOT NULL AND AREA_NAME != '' ORDER BY AREA_NAME"
-        ).fetchall()]
-
-        stores = rows_to_list(conn.execute(
-            "SELECT DISTINCT LOC, STORE_NAME, AREA_NAME FROM mv_option_loc WHERE STORE_NAME IS NOT NULL AND STORE_NAME != '' ORDER BY STORE_NAME"
-        ).fetchall())
-
-        seasons = [r["SEASON_CODE"] for r in conn.execute(
-            "SELECT DISTINCT SEASON_CODE FROM mv_option_loc WHERE SEASON_CODE IS NOT NULL AND SEASON_CODE != '' ORDER BY SEASON_CODE"
-        ).fetchall()]
-
-        labels = [r["LABEL"] for r in conn.execute(
-            "SELECT DISTINCT LABEL FROM mv_option_loc WHERE LABEL IS NOT NULL AND LABEL != '' ORDER BY LABEL"
-        ).fetchall()]
-
-        stories = [r["STORY"] for r in conn.execute(
-            "SELECT DISTINCT STORY FROM mv_option_loc WHERE STORY IS NOT NULL AND STORY != '' ORDER BY STORY"
-        ).fetchall()]
-
-        conn.close()
-        return jsonify({
-            "brands": brands,
-            "depts": depts,
-            "classes": classes,
-            "subclasses": subclasses,
-            "countries": countries,
-            "stores": stores,
-            "seasons": seasons,
-            "labels": labels,
-            "stories": stories,
-        })
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/ranging-dashboard-1/analytics")
-def rd1_analytics():
-    """Get comprehensive analytics data for RD1"""
-    try:
-        where_sql, params = build_rd1_where(request.args)
-        conn = get_db()
-
-        # 1. Overall Metrics
-        metrics = conn.execute(f"""
-            SELECT
-                COUNT(DISTINCT OPTION_ID) AS total_options,
-                COUNT(DISTINCT CASE WHEN STATUS = 'A' THEN OPTION_ID END) AS active_options,
-                COUNT(DISTINCT CASE WHEN STATUS = 'I' THEN OPTION_ID END) AS inactive_options,
-                COUNT(DISTINCT LOC) AS unique_stores,
-                COUNT(DISTINCT CASE WHEN STATUS = 'A' THEN LOC END) AS active_stores,
-                ROUND(AVG(SELLING_UNIT_RETAIL), 2) AS avg_price
-            FROM mv_option_loc
-            WHERE {where_sql}
-        """, params).fetchone()
-
-        # 2. Status Distribution
-        status_dist = rows_to_list(conn.execute(f"""
-            SELECT STATUS, COUNT(DISTINCT OPTION_ID) AS count
-            FROM mv_option_loc
-            WHERE {where_sql}
-            GROUP BY STATUS
-            ORDER BY STATUS
-        """, params).fetchall())
-
-        # 3. Options by Department
-        dept_dist = rows_to_list(conn.execute(f"""
-            SELECT DEPT, DEPT_NAME, COUNT(DISTINCT OPTION_ID) AS count
-            FROM mv_option_loc
-            WHERE {where_sql}
-            GROUP BY DEPT, DEPT_NAME
-            ORDER BY count DESC, DEPT
-        """, params).fetchall())
-
-        # 4. Top Brands
-        brand_dist = rows_to_list(conn.execute(f"""
-            SELECT BRAND, COUNT(DISTINCT OPTION_ID) AS count
-            FROM mv_option_loc
-            WHERE {where_sql} AND BRAND IS NOT NULL AND BRAND != ''
-            GROUP BY BRAND
-            ORDER BY count DESC
-            LIMIT 15
-        """, params).fetchall())
-
-        # 5. Top Seasons
-        season_dist = rows_to_list(conn.execute(f"""
-            SELECT SEASON_CODE, COUNT(DISTINCT OPTION_ID) AS count
-            FROM mv_option_loc
-            WHERE {where_sql} AND SEASON_CODE IS NOT NULL AND SEASON_CODE != ''
-            GROUP BY SEASON_CODE
-            ORDER BY count DESC
-            LIMIT 12
-        """, params).fetchall())
-
-        # 6. Top Labels
-        label_dist = rows_to_list(conn.execute(f"""
-            SELECT LABEL, COUNT(DISTINCT OPTION_ID) AS count
-            FROM mv_option_loc
-            WHERE {where_sql} AND LABEL IS NOT NULL AND LABEL != ''
-            GROUP BY LABEL
-            ORDER BY count DESC
-            LIMIT 12
-        """, params).fetchall())
-
-        # 7. Top Stories
-        story_dist = rows_to_list(conn.execute(f"""
-            SELECT STORY, COUNT(DISTINCT OPTION_ID) AS count
-            FROM mv_option_loc
-            WHERE {where_sql} AND STORY IS NOT NULL AND STORY != ''
-            GROUP BY STORY
-            ORDER BY count DESC
-            LIMIT 12
-        """, params).fetchall())
-
-        # 8. By Chain
-        chain_dist = rows_to_list(conn.execute(f"""
-            SELECT CHAIN_NAME, COUNT(DISTINCT OPTION_ID) AS count
-            FROM mv_option_loc
-            WHERE {where_sql} AND CHAIN_NAME IS NOT NULL AND CHAIN_NAME != ''
-            GROUP BY CHAIN_NAME
-            ORDER BY count DESC
-            LIMIT 10
-        """, params).fetchall())
-
-        # 9. By Market
-        market_dist = rows_to_list(conn.execute(f"""
-            SELECT MARKET, COUNT(DISTINCT OPTION_ID) AS count
-            FROM mv_option_loc
-            WHERE {where_sql} AND MARKET IS NOT NULL AND MARKET != ''
-            GROUP BY MARKET
-            ORDER BY count DESC
-            LIMIT 10
-        """, params).fetchall())
 
         conn.close()
 
         return jsonify({
-            "metrics": {
-                "total_options": metrics["total_options"] or 0,
-                "active_options": metrics["active_options"] or 0,
-                "inactive_options": metrics["inactive_options"] or 0,
-                "unique_stores": metrics["unique_stores"] or 0,
-                "active_stores": metrics["active_stores"] or 0,
-                "avg_price": metrics["avg_price"] or 0,
-            },
-            "charts": {
-                "status_distribution": status_dist,
-                "by_department": dept_dist,
-                "top_brands": brand_dist,
-                "top_seasons": season_dist,
-                "top_labels": label_dist,
-                "top_stories": story_dist,
-                "by_chain": chain_dist,
-                "by_market": market_dist,
-            }
+            "total": total or 0,
+            "page": page,
+            "page_size": page_size,
+            "count": len(rows),
+            "rows": rows,
         })
     except Exception as e:
         traceback.print_exc()

@@ -337,6 +337,14 @@ const rdState = {
   },
 };
 
+const rdDrillState = {
+  page: 1,
+  pageSize: 100,
+  total: 0,
+  title: '',
+  extraFilters: {},
+};
+
 function populateRangingClasses(dept) {
   const classSel = $('rd-class-select');
   const subSel = $('rd-subclass-select');
@@ -367,34 +375,195 @@ function populateRangingSubclasses(dept, classId) {
     .forEach(s => subSel.appendChild(new Option(s.SUB_NAME ? `${s.SUBCLASS} - ${s.SUB_NAME}` : `${s.SUBCLASS}`, s.SUBCLASS)));
 }
 
-function renderRangingOverviewList(listId, items) {
+function renderRangingOverviewList(listId, items, drillType) {
   const ul = $(listId);
   if (!ul) return;
   if (!items || !items.length) {
     ul.innerHTML = '<li>No data</li>';
     return;
   }
+
+  const filterParamByType = {
+    season: 'season',
+    label: 'label',
+    story: 'story',
+  };
+
+  const filterParam = filterParamByType[drillType];
   ul.innerHTML = items
-    .map(item => `<li><span>${esc(item.label)}</span><strong>${fmt(item.count)}</strong></li>`)
+    .map(item => `
+      <li>
+        <button
+          type="button"
+          class="rd-drill-link"
+          data-drill-source="overview"
+          data-drill-type="${esc(drillType || '')}"
+          data-drill-label="${esc(item.label || '')}"
+          data-drill-count="${Number(item.count || 0)}"
+          data-drill-filter="${esc(filterParam || '')}"
+          data-drill-filter-value="${esc(item.label || '')}"
+          data-drill-status="A"
+        >
+          <span>${esc(item.label)}</span>
+          <strong>${fmt(item.count)}</strong>
+        </button>
+      </li>
+    `)
     .join('');
+}
+
+function renderRangingMetricValue(elId, value, drillLabel, extraFilters = {}) {
+  const el = $(elId);
+  if (!el) return;
+  const numeric = value == null ? null : Number(value);
+  if (numeric == null || Number.isNaN(numeric)) {
+    el.textContent = value == null ? 'null' : String(value);
+    return;
+  }
+
+  const encodedFilters = encodeURIComponent(JSON.stringify(extraFilters));
+  el.innerHTML = `
+    <button
+      type="button"
+      class="rd-drill-link rd-drill-value-link"
+      data-drill-source="metric"
+      data-drill-type="metric"
+      data-drill-label="${esc(drillLabel)}"
+      data-drill-count="${numeric}"
+      data-drill-filters="${encodedFilters}"
+    >${fmt(numeric)}</button>
+  `;
+}
+
+function buildRangingDrillQuery(extraFilters) {
+  const params = new URLSearchParams();
+  Object.entries(rdState.selected).forEach(([key, value]) => {
+    if (value) params.set(key, value);
+  });
+
+  Object.entries(extraFilters || {}).forEach(([key, value]) => {
+    if (value != null && value !== '') params.set(key, value);
+  });
+
+  params.set('page', String(rdDrillState.page));
+  params.set('page_size', String(rdDrillState.pageSize));
+  return params;
+}
+
+async function fetchRangingDrilldown() {
+  const tbody = $('rd-drill-tbody');
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; padding:24px; color: var(--text-muted);">Loading details...</td></tr>';
+  }
+
+  try {
+    const params = buildRangingDrillQuery(rdDrillState.extraFilters);
+    const data = await apiFetch(`/api/ranging-dashboard/drilldown?${params.toString()}`);
+
+    rdDrillState.total = Number(data.total || 0);
+    $('rd-drill-total').textContent = fmt(rdDrillState.total);
+    $('rd-drill-page').textContent = String(rdDrillState.page);
+    $('rd-drill-count').textContent = fmt(data.count || 0);
+
+    const totalPages = Math.max(1, Math.ceil(rdDrillState.total / rdDrillState.pageSize));
+    $('rd-drill-page-info').textContent = `Page ${rdDrillState.page} of ${totalPages}`;
+    $('rd-drill-prev').disabled = rdDrillState.page <= 1;
+    $('rd-drill-next').disabled = rdDrillState.page >= totalPages;
+
+    if (!data.rows || !data.rows.length) {
+      tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; padding:24px; color: var(--text-muted);">No matching option-store records found.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.rows.map(r => `
+      <tr>
+        <td class="mono">${esc(r.OPTION_ID || '')}</td>
+        <td>${esc(r.STORE_NAME || '')}</td>
+        <td>${esc(r.STATUS || '')}</td>
+        <td>${esc(r.BRAND || '')}</td>
+        <td title="${esc(r.OPTION_DESC || '')}">${esc(r.OPTION_DESC || '')}</td>
+        <td class="mono">${r.DEPT ?? '—'} ${r.DEPT_NAME ? `<span class="text-dim">${esc(r.DEPT_NAME)}</span>` : ''}</td>
+        <td class="mono">${r.CLASS ?? '—'} ${r.CLASS_NAME ? `<span class="text-dim">${esc(r.CLASS_NAME)}</span>` : ''}</td>
+        <td class="mono">${r.SUBCLASS ?? '—'} ${r.SUB_NAME ? `<span class="text-dim">${esc(r.SUB_NAME)}</span>` : ''}</td>
+        <td>${esc(r.SEASON_CODE || '')}</td>
+        <td>${esc(r.LABEL || '')}</td>
+        <td>${esc(r.STORY || '')}</td>
+        <td>${esc(r.AREA_NAME || '')}</td>
+        <td style="text-align:right;" class="mono">${r.SELLING_UNIT_RETAIL == null ? '—' : fmt(r.SELLING_UNIT_RETAIL)}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    showToast('error', 'Drilldown Error', e.message);
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="13" style="text-align:center; padding:24px; color: var(--error);">${esc(e.message)}</td></tr>`;
+    }
+  }
+}
+
+function openRangingDrilldown({ title, extraFilters }) {
+  rdDrillState.title = title;
+  rdDrillState.extraFilters = extraFilters || {};
+  rdDrillState.page = 1;
+
+  $('rd-drill-desc').textContent = `${title}. Showing option-store details with current Ranging Dashboard filters applied.`;
+  navigateTo('page-ranging-dashboard-details');
+  fetchRangingDrilldown();
+}
+
+function handleRangingDrillClick(event) {
+  const trigger = event.target.closest('.rd-drill-link');
+  if (!trigger) return;
+
+  const count = Number(trigger.dataset.drillCount || 0);
+  if (!count) {
+    showToast('info', 'No Details', 'No records available for this value.');
+    return;
+  }
+
+  const label = trigger.dataset.drillLabel || 'Selection';
+  const filterName = trigger.dataset.drillFilter;
+  const filterValue = trigger.dataset.drillFilterValue;
+  const status = trigger.dataset.drillStatus;
+  const encodedFilters = trigger.dataset.drillFilters;
+
+  let extraFilters = {};
+  if (encodedFilters) {
+    try {
+      extraFilters = JSON.parse(decodeURIComponent(encodedFilters));
+    } catch {
+      extraFilters = {};
+    }
+  }
+
+  if (filterName && filterValue) {
+    extraFilters[filterName] = filterValue;
+  }
+  if (status) {
+    extraFilters.status = status;
+  }
+
+  openRangingDrilldown({
+    title: `${label} (${fmt(count)})`,
+    extraFilters,
+  });
 }
 
 function renderRangingDashboard(data) {
   const metrics = data.metrics || {};
-  const displayNull = value => (value == null ? 'null' : fmt(value));
+  const displayNull = value => (value == null ? 'null' : value);
 
-  $('rd-total-active-options').textContent = fmt(metrics.total_active_options || 0);
-  $('rd-total-inactive-options').textContent = fmt(metrics.total_inactive_options || 0);
-  $('rd-total-active-option-stores').textContent = fmt(metrics.total_active_option_stores || 0);
-  $('rd-total-inactive-option-stores').textContent = fmt(metrics.total_inactive_option_stores || 0);
-  $('rd-options-in-r').textContent = displayNull(metrics.options_in_r);
-  $('rd-options-in-c').textContent = displayNull(metrics.options_in_c);
-  $('rd-options-in-p').textContent = displayNull(metrics.options_in_p);
+  renderRangingMetricValue('rd-total-active-options', metrics.total_active_options || 0, 'Total Active Options', { status: 'A' });
+  renderRangingMetricValue('rd-total-inactive-options', metrics.total_inactive_options || 0, 'Total Inactive Options', { status: 'I' });
+  renderRangingMetricValue('rd-total-active-option-stores', metrics.total_active_option_stores || 0, 'Total Active Option Stores', { status: 'A' });
+  renderRangingMetricValue('rd-total-inactive-option-stores', metrics.total_inactive_option_stores || 0, 'Total Inactive Option Stores', { status: 'I' });
+  renderRangingMetricValue('rd-options-in-r', displayNull(metrics.options_in_r), 'Options in R', { rcp: 'R' });
+  renderRangingMetricValue('rd-options-in-c', displayNull(metrics.options_in_c), 'Options in C', { rcp: 'C' });
+  renderRangingMetricValue('rd-options-in-p', displayNull(metrics.options_in_p), 'Options in P', { rcp: 'P' });
 
   const overview = data.overview || {};
-  renderRangingOverviewList('rd-list-season', overview.by_season || []);
-  renderRangingOverviewList('rd-list-label', overview.by_label || []);
-  renderRangingOverviewList('rd-list-story', overview.by_story || []);
+  renderRangingOverviewList('rd-list-season', overview.by_season || [], 'season');
+  renderRangingOverviewList('rd-list-label', overview.by_label || [], 'label');
+  renderRangingOverviewList('rd-list-story', overview.by_story || [], 'story');
 }
 
 async function fetchRangingDashboard() {
@@ -444,9 +613,9 @@ async function initRangingDashboard() {
     });
 
     populateRangingClasses('');
-    renderRangingOverviewList('rd-list-season', []);
-    renderRangingOverviewList('rd-list-label', []);
-    renderRangingOverviewList('rd-list-story', []);
+    renderRangingOverviewList('rd-list-season', [], 'season');
+    renderRangingOverviewList('rd-list-label', [], 'label');
+    renderRangingOverviewList('rd-list-story', [], 'story');
   } catch (e) {
     showToast('error', 'Ranging Setup Error', e.message);
     return;
@@ -483,6 +652,21 @@ async function initRangingDashboard() {
   });
 
   fetchRangingDashboard();
+
+  // Drilldown interactions
+  $('page-ranging-dashboard').addEventListener('click', handleRangingDrillClick);
+  $('rd-drill-back').addEventListener('click', () => navigateTo('page-ranging-dashboard'));
+  $('rd-drill-prev').addEventListener('click', () => {
+    if (rdDrillState.page <= 1) return;
+    rdDrillState.page -= 1;
+    fetchRangingDrilldown();
+  });
+  $('rd-drill-next').addEventListener('click', () => {
+    const totalPages = Math.max(1, Math.ceil((rdDrillState.total || 0) / rdDrillState.pageSize));
+    if (rdDrillState.page >= totalPages) return;
+    rdDrillState.page += 1;
+    fetchRangingDrilldown();
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -3399,351 +3583,11 @@ function updateAsrSelectAll() {
 // ═══════════════════════════════════════════════════════════════════
 
 
-// ═════════════════════════════════════════════════════════════════════════════
-// ════════ PAGE: RANGING DASHBOARD-1 (Advanced Analytics) ════════════════════
-// ═════════════════════════════════════════════════════════════════════════════
-
-const rd1State = {
-  selected: { brand: '', dept: '', class: '', subclass: '', country: '', store: '', season: '', label: '', story: '', status: '' },
-  filtersMeta: null,
-  charts: {}
-};
-
-let rd1ChartInstances = {};
-
-// ── Chart Colors ────────────────────────────────────────────────────────────
-const rd1ChartColors = {
-  primary: '#3b82f6',
-  success: '#10b981',
-  danger: '#ef4444',
-  warning: '#f59e0b',
-  info: '#06b6d4',
-  secondary: '#8b5cf6',
-  accent: '#ec4899',
-  muted: '#64748b',
-};
-
-const rd1ChartPalette = [
-  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
-  '#06b6d4', '#ec4899', '#14b8a6', '#d97706', '#7c3aed',
-  '#f97316', '#06b6d4', '#a855f7', '#0891b2'
-];
-
-// ── Initialize RD1 ───────────────────────────────────────────────────────────
-async function initRd1Dashboard() {
-  if (!$('page-ranging-dashboard-1')) return;
-
-  try {
-    const meta = await apiFetch('/api/ranging-dashboard-1/filters');
-    rd1State.filtersMeta = meta;
-
-    // Populate filter dropdowns
-    populateRd1Select('rd1-brand-select', meta.brands.map(b => ({ value: b, label: b })));
-    populateRd1Select('rd1-dept-select', meta.depts.map(d => ({ value: d.DEPT, label: `${d.DEPT} - ${d.DEPT_NAME}` })));
-    populateRd1Select('rd1-season-select', meta.seasons.map(s => ({ value: s, label: s })));
-    populateRd1Select('rd1-label-select', meta.labels.map(l => ({ value: l, label: l })));
-    populateRd1Select('rd1-story-select', meta.stories.map(s => ({ value: s, label: s })));
-    populateRd1Select('rd1-country-select', meta.countries.map(c => ({ value: c, label: c })));
-    populateRd1Select('rd1-store-select', meta.stores.map(s => ({ value: s.STORE_NAME, label: s.STORE_NAME })));
-
-    // Department change cascades to class
-    $('rd1-dept-select').addEventListener('change', () => {
-      rd1State.selected.dept = $('rd1-dept-select').value || '';
-      rd1State.selected.class = '';
-      rd1State.selected.subclass = '';
-      $('rd1-class-select').value = '';
-      $('rd1-subclass-select').value = '';
-      populateRd1Classes(rd1State.selected.dept);
-    });
-
-    // Class change cascades to subclass
-    $('rd1-class-select').addEventListener('change', () => {
-      rd1State.selected.class = $('rd1-class-select').value || '';
-      rd1State.selected.subclass = '';
-      $('rd1-subclass-select').value = '';
-      populateRd1Subclasses(rd1State.selected.dept, rd1State.selected.class);
-    });
-
-    $('rd1-subclass-select').addEventListener('change', () => {
-      rd1State.selected.subclass = $('rd1-subclass-select').value || '';
-    });
-
-    // Other filter changes
-    ['rd1-brand-select', 'rd1-season-select', 'rd1-label-select', 'rd1-story-select', 'rd1-country-select', 'rd1-store-select', 'rd1-status-select'].forEach(id => {
-      const keyMap = {
-        'rd1-brand-select': 'brand',
-        'rd1-season-select': 'season',
-        'rd1-label-select': 'label',
-        'rd1-story-select': 'story',
-        'rd1-country-select': 'country',
-        'rd1-store-select': 'store',
-        'rd1-status-select': 'status'
-      };
-      $(id).addEventListener('change', () => {
-        rd1State.selected[keyMap[id]] = $(id).value || '';
-      });
-    });
-
-    // Apply and Reset buttons
-    $('rd1-btn-apply').addEventListener('click', () => fetchRd1Analytics());
-    $('rd1-btn-reset').addEventListener('click', () => {
-      rd1State.selected = { brand: '', dept: '', class: '', subclass: '', country: '', store: '', season: '', label: '', story: '', status: '' };
-      ['rd1-brand-select', 'rd1-dept-select', 'rd1-class-select', 'rd1-subclass-select', 'rd1-season-select', 'rd1-label-select', 'rd1-story-select', 'rd1-country-select', 'rd1-store-select', 'rd1-status-select'].forEach(id => $(id).value = '');
-      populateRd1Classes('');
-      populateRd1Subclasses('', '');
-      fetchRd1Analytics();
-    });
-
-    populateRd1Classes('');
-    fetchRd1Analytics();
-  } catch (e) {
-    showToast('error', 'RD1 Setup Error', e.message);
-  }
-}
-
-function populateRd1Select(id, options) {
-  const sel = $(id);
-  sel.innerHTML = '<option value="">All</option>';
-  (options || []).forEach(opt => {
-    sel.appendChild(new Option(opt.label, opt.value));
-  });
-}
-
-function populateRd1Classes(dept) {
-  const sel = $('rd1-class-select');
-  sel.innerHTML = '<option value="">All Classes</option>';
-  sel.disabled = !dept;
-  if (!dept) return;
-  const filtered = (rd1State.filtersMeta.classes || []).filter(c => c.DEPT == dept);
-  filtered.forEach(c => sel.appendChild(new Option(`${c.CLASS} - ${c.CLASS_NAME}`, c.CLASS)));
-}
-
-function populateRd1Subclasses(dept, cls) {
-  const sel = $('rd1-subclass-select');
-  sel.innerHTML = '<option value="">All Subclasses</option>';
-  const filtered = (rd1State.filtersMeta.subclasses || []).filter(s => s.DEPT == dept && s.CLASS == cls);
-  filtered.forEach(s => sel.appendChild(new Option(`${s.SUBCLASS} - ${s.SUB_NAME}`, s.SUBCLASS)));
-  sel.disabled = filtered.length === 0;
-}
-
-// ── Fetch Analytics Data ─────────────────────────────────────────────────────
-async function fetchRd1Analytics() {
-  const params = new URLSearchParams();
-  Object.entries(rd1State.selected).forEach(([key, value]) => {
-    if (value) params.set(key, value);
-  });
-
-  $('rd1-btn-apply').disabled = true;
-  $('rd1-btn-apply').textContent = 'Loading...';
-  try {
-    const data = await apiFetch(`/api/ranging-dashboard-1/analytics?${params.toString()}`);
-    renderRd1Analytics(data);
-  } catch (e) {
-    showToast('error', 'RD1 Analytics Error', e.message);
-  } finally {
-    $('rd1-btn-apply').disabled = false;
-    $('rd1-btn-apply').textContent = 'Apply Filters';
-  }
-}
-
-// ── Render Metrics ───────────────────────────────────────────────────────────
-function renderRd1Analytics(data) {
-  const m = data.metrics;
-  $('rd1-metric-total-options').textContent = fmt(m.total_options);
-  $('rd1-metric-active-options').textContent = fmt(m.active_options);
-  $('rd1-metric-inactive-options').textContent = fmt(m.inactive_options);
-  $('rd1-metric-unique-stores').textContent = fmt(m.unique_stores);
-  $('rd1-metric-avg-price').textContent = m.avg_price ? `$${fmt(m.avg_price)}` : '$0';
-  $('rd1-metric-active-stores').textContent = fmt(m.active_stores);
-
-  // Render charts
-  renderRd1Charts(data.charts);
-}
-
-// ── Render Charts ────────────────────────────────────────────────────────────
-function renderRd1Charts(charts) {
-  // Destroy existing charts
-  Object.values(rd1ChartInstances).forEach(chart => {
-    if (chart && typeof chart.destroy === 'function') {
-      chart.destroy();
-    }
-  });
-  rd1ChartInstances = {};
-
-  // 1. Status Distribution (Doughnut)
-  const statusCtx = $('rd1-chart-status').getContext('2d');
-  rd1ChartInstances['status'] = new Chart(statusCtx, {
-    type: 'doughnut',
-    data: {
-      labels: charts.status_distribution.map(item => item.STATUS === 'A' ? 'Active' : 'Inactive'),
-      datasets: [{
-        data: charts.status_distribution.map(item => item.count),
-        backgroundColor: ['#10b981', '#ef4444'],
-        borderColor: 'var(--bg-surface)',
-        borderWidth: 2,
-      }]
-    },
-    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { color: 'var(--text-primary)', padding: 15, font: { size: 12 } } } } }
-  });
-
-  // 2. Options by Department (Bar)
-  const deptCtx = $('rd1-chart-dept').getContext('2d');
-  rd1ChartInstances['dept'] = new Chart(deptCtx, {
-    type: 'bar',
-    data: {
-      labels: charts.by_department.slice(0, 10).map(item => item.DEPT_NAME || `D${item.DEPT}`),
-      datasets: [{
-        label: 'Options',
-        data: charts.by_department.slice(0, 10).map(item => item.count),
-        backgroundColor: rd1ChartColors.primary,
-        borderRadius: 6,
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      maintainAspectRatio: true,
-      plugins: { legend: { display: false } },
-      scales: { x: { ticks: { color: 'var(--text-secondary)' }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { ticks: { color: 'var(--text-secondary)', font: { size: 11 } }, grid: { display: false } } }
-    }
-  });
-
-  // 3. Top Brands (Horizontal Bar)
-  const brandCtx = $('rd1-chart-brand').getContext('2d');
-  rd1ChartInstances['brand'] = new Chart(brandCtx, {
-    type: 'bar',
-    data: {
-      labels: charts.top_brands.slice(0, 10).map(item => item.BRAND),
-      datasets: [{
-        label: 'Options',
-        data: charts.top_brands.slice(0, 10).map(item => item.count),
-        backgroundColor: rd1ChartColors.warning,
-        borderRadius: 6,
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      maintainAspectRatio: true,
-      plugins: { legend: { display: false } },
-      scales: { x: { ticks: { color: 'var(--text-secondary)' }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { ticks: { color: 'var(--text-secondary)', font: { size: 10 } }, grid: { display: false } } }
-    }
-  });
-
-  // 4. Top Seasons (Bar)
-  const seasonCtx = $('rd1-chart-season').getContext('2d');
-  rd1ChartInstances['season'] = new Chart(seasonCtx, {
-    type: 'bar',
-    data: {
-      labels: charts.top_seasons.map(item => item.SEASON_CODE),
-      datasets: [{
-        label: 'Options',
-        data: charts.top_seasons.map(item => item.count),
-        backgroundColor: rd1ChartColors.secondary,
-        borderRadius: 6,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      plugins: { legend: { display: false } },
-      scales: { y: { ticks: { color: 'var(--text-secondary)' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: 'var(--text-secondary)' }, grid: { display: false } } }
-    }
-  });
-
-  // 5. Top Labels (Bar)
-  const labelCtx = $('rd1-chart-label').getContext('2d');
-  rd1ChartInstances['label'] = new Chart(labelCtx, {
-    type: 'bar',
-    data: {
-      labels: charts.top_labels.slice(0, 8).map(item => item.LABEL),
-      datasets: [{
-        label: 'Options',
-        data: charts.top_labels.slice(0, 8).map(item => item.count),
-        backgroundColor: rd1ChartColors.info,
-        borderRadius: 6,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      plugins: { legend: { display: false } },
-      scales: { y: { ticks: { color: 'var(--text-secondary)' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: 'var(--text-secondary)' }, grid: { display: false } } }
-    }
-  });
-
-  // 6. Top Stories (Bar)
-  const storyCtx = $('rd1-chart-story').getContext('2d');
-  rd1ChartInstances['story'] = new Chart(storyCtx, {
-    type: 'bar',
-    data: {
-      labels: charts.top_stories.slice(0, 8).map(item => item.STORY),
-      datasets: [{
-        label: 'Options',
-        data: charts.top_stories.slice(0, 8).map(item => item.count),
-        backgroundColor: rd1ChartColors.accent,
-        borderRadius: 6,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      plugins: { legend: { display: false } },
-      scales: { y: { ticks: { color: 'var(--text-secondary)' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: 'var(--text-secondary)' }, grid: { display: false } } }
-    }
-  });
-
-  // 7. By Chain (Horizontal Bar)
-  const chainCtx = $('rd1-chart-chain').getContext('2d');
-  rd1ChartInstances['chain'] = new Chart(chainCtx, {
-    type: 'bar',
-    data: {
-      labels: charts.by_chain.map(item => item.CHAIN_NAME),
-      datasets: [{
-        label: 'Options',
-        data: charts.by_chain.map(item => item.count),
-        backgroundColor: rd1ChartColors.success,
-        borderRadius: 6,
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      maintainAspectRatio: true,
-      plugins: { legend: { display: false } },
-      scales: { x: { ticks: { color: 'var(--text-secondary)' }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { ticks: { color: 'var(--text-secondary)', font: { size: 10 } }, grid: { display: false } } }
-    }
-  });
-
-  // 8. By Market (Horizontal Bar)
-  const marketCtx = $('rd1-chart-market').getContext('2d');
-  rd1ChartInstances['market'] = new Chart(marketCtx, {
-    type: 'bar',
-    data: {
-      labels: charts.by_market.map(item => item.MARKET),
-      datasets: [{
-        label: 'Options',
-        data: charts.by_market.map(item => item.count),
-        backgroundColor: rd1ChartPalette[5],
-        borderRadius: 6,
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      maintainAspectRatio: true,
-      plugins: { legend: { display: false } },
-      scales: { x: { ticks: { color: 'var(--text-secondary)' }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { ticks: { color: 'var(--text-secondary)', font: { size: 10 } }, grid: { display: false } } }
-    }
-  });
-}
-
 async function init() {
   await checkHealth();
   await loadFilters();
   await initForecastFilters();
   await initRangingDashboard();
-  await initRd1Dashboard();
   initSraPage();
   initDfcPage();
   initAttachSizeRangePage();
