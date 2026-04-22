@@ -102,6 +102,16 @@
           </span>
           <span class="nav-label">Ranging Dashboard</span>
         </button>
+        <button class="nav-item" id="nav-ranging-dashboard-1" data-page="page-ranging-dashboard-1">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
+          </span>
+          <span class="nav-label">Ranging Dashboard-1</span>
+        </button>
         <button class="nav-item" id="nav-size-range-analysis" data-page="page-size-range-analysis">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
@@ -1193,102 +1203,266 @@
           </div>
         </div>
 
-        <!-- Charts Section -->
-        <div class="filter-panel">
-          <div class="filter-panel-header">
-            <div class="filter-panel-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                <line x1="12" y1="2" x2="12" y2="22"></line>
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-              </svg>
-              <span>Analysis & Distribution</span>
-            </div>
-          </div>
-          <div class="rd-charts-grid">
-            <div class="rd-chart-container">
-              <h3>Status Distribution</h3>
-              <canvas id="rd-chart-status"></canvas>
-            </div>
-            <div class="rd-chart-container">
-              <h3>Top 10 Departments</h3>
-              <canvas id="rd-chart-departments"></canvas>
-            </div>
-            <div class="rd-chart-container">
-              <h3>Top 10 Brands</h3>
-              <canvas id="rd-chart-brands"></canvas>
-            </div>
-            <div class="rd-chart-container">
-              <h3>Status by Department</h3>
-              <canvas id="rd-chart-status-dept"></canvas>
-            </div>
-          </div>
-        </div>
-
-        <!-- Detailed Options Section -->
-        <div class="filter-panel">
-          <div class="filter-panel-header">
-            <div class="filter-panel-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                <path d="M3 9h18M3 15h18M3 3h18M3 21h18"></path>
-              </svg>
-              <span>Option Details</span>
-            </div>
-            <button type="button" class="btn btn-secondary" id="rd-btn-view-options" style="font-size: 12px; padding: 6px 12px;">
-              View Options
-            </button>
-          </div>
-          <div class="rd-details-summary">
-            <p id="rd-options-count">Load data to see details...</p>
-          </div>
-        </div>
       </section>
 
-      <!-- Modal: Detailed Options Viewer -->
-      <div class="modal hidden" id="rd-modal-options">
-        <div class="modal-overlay" id="rd-modal-overlay"></div>
-        <div class="modal-content">
-          <div class="modal-header">
-            <h2>Option Details</h2>
-            <button type="button" class="modal-close" id="rd-modal-close">&times;</button>
+      <!-- ════════════════════════════════════════════
+           PAGE: RANGING DASHBOARD-1
+      ══════════════════════════════════════════════ -->
+      <section class="page hidden" id="page-ranging-dashboard-1" aria-label="Ranging Dashboard-1">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Ranging Dashboard-1</h1>
+            <p class="page-desc">Comprehensive product option analysis with multi-dimensional visualizations from mv_option_loc table.</p>
           </div>
-          <div class="modal-body">
-            <div class="modal-search-bar">
-              <input 
-                type="text" 
-                id="rd-options-search" 
-                class="modal-search-input" 
-                placeholder="Search by Option ID, Brand, Description, Store..."
-              >
+        </div>
+
+        <!-- Filter Panel -->
+        <div class="filter-panel">
+          <div class="filter-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
+            <div class="filter-group">
+              <label for="rd1-brand-select" class="filter-label">Brand</label>
+              <div class="select-wrapper">
+                <select id="rd1-brand-select" class="filter-select">
+                  <option value="">All Brands</option>
+                </select>
+              </div>
             </div>
-            <div class="modal-table-container">
-              <table class="modal-table" id="rd-options-table">
-                <thead>
-                  <tr>
-                    <th>Brand</th>
-                    <th>Option ID</th>
-                    <th>Description</th>
-                    <th>Status</th>
-                    <th>Department</th>
-                    <th>Class</th>
-                    <th>Subclass</th>
-                    <th>Season</th>
-                    <th>Label</th>
-                    <th>Story</th>
-                    <th>Store</th>
-                    <th>Price</th>
-                  </tr>
-                </thead>
-                <tbody id="rd-options-tbody">
-                  <tr><td colspan="12" style="text-align: center; padding: 20px;">Loading...</td></tr>
-                </tbody>
-              </table>
+            <div class="filter-group">
+              <label for="rd1-dept-select" class="filter-label">Department</label>
+              <div class="select-wrapper">
+                <select id="rd1-dept-select" class="filter-select">
+                  <option value="">All Departments</option>
+                </select>
+              </div>
             </div>
-            <div class="modal-footer">
-              <p id="rd-modal-row-count" style="font-size: 12px; color: var(--text-secondary);">Showing records</p>
+            <div class="filter-group">
+              <label for="rd1-class-select" class="filter-label">Class</label>
+              <div class="select-wrapper">
+                <select id="rd1-class-select" class="filter-select" disabled>
+                  <option value="">All Classes</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="rd1-subclass-select" class="filter-label">Subclass</label>
+              <div class="select-wrapper">
+                <select id="rd1-subclass-select" class="filter-select" disabled>
+                  <option value="">All Subclasses</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="rd1-season-select" class="filter-label">Season</label>
+              <div class="select-wrapper">
+                <select id="rd1-season-select" class="filter-select">
+                  <option value="">All Seasons</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="rd1-label-select" class="filter-label">Product Label</label>
+              <div class="select-wrapper">
+                <select id="rd1-label-select" class="filter-select">
+                  <option value="">All Labels</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="rd1-story-select" class="filter-label">Story</label>
+              <div class="select-wrapper">
+                <select id="rd1-story-select" class="filter-select">
+                  <option value="">All Stories</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="rd1-country-select" class="filter-label">Country/Area</label>
+              <div class="select-wrapper">
+                <select id="rd1-country-select" class="filter-select">
+                  <option value="">All Countries</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="rd1-store-select" class="filter-label">Store</label>
+              <div class="select-wrapper">
+                <select id="rd1-store-select" class="filter-select">
+                  <option value="">All Stores</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label for="rd1-status-select" class="filter-label">Status</label>
+              <div class="select-wrapper">
+                <select id="rd1-status-select" class="filter-select">
+                  <option value="">All Status</option>
+                  <option value="A">Active</option>
+                  <option value="I">Inactive</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="filter-actions">
+            <button type="button" class="btn btn-primary" id="rd1-btn-apply">Apply Filters</button>
+            <button type="button" class="btn btn-secondary" id="rd1-btn-reset">Reset</button>
+          </div>
+        </div>
+
+        <!-- Top Metric Cards -->
+        <div class="rd1-metrics-top">
+          <div class="rd1-metric-card rd1-metric-primary">
+            <div class="rd1-metric-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" />
+              </svg>
+            </div>
+            <div class="rd1-metric-content">
+              <div class="rd1-metric-label">Total Unique Options</div>
+              <div class="rd1-metric-value" id="rd1-metric-total-options">0</div>
+            </div>
+          </div>
+
+          <div class="rd1-metric-card rd1-metric-success">
+            <div class="rd1-metric-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
+                <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+            </div>
+            <div class="rd1-metric-content">
+              <div class="rd1-metric-label">Active Options</div>
+              <div class="rd1-metric-value" id="rd1-metric-active-options">0</div>
+            </div>
+          </div>
+
+          <div class="rd1-metric-card rd1-metric-danger">
+            <div class="rd1-metric-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="15" y1="9" x2="9" y2="15" />
+                <line x1="9" y1="9" x2="15" y2="15" />
+              </svg>
+            </div>
+            <div class="rd1-metric-content">
+              <div class="rd1-metric-label">Inactive Options</div>
+              <div class="rd1-metric-value" id="rd1-metric-inactive-options">0</div>
+            </div>
+          </div>
+
+          <div class="rd1-metric-card rd1-metric-info">
+            <div class="rd1-metric-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 00-3-3.87" />
+                <path d="M16 3.13a4 4 0 010 7.75" />
+              </svg>
+            </div>
+            <div class="rd1-metric-content">
+              <div class="rd1-metric-label">Unique Stores</div>
+              <div class="rd1-metric-value" id="rd1-metric-unique-stores">0</div>
+            </div>
+          </div>
+
+          <div class="rd1-metric-card rd1-metric-warning">
+            <div class="rd1-metric-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
+                <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
+              </svg>
+            </div>
+            <div class="rd1-metric-content">
+              <div class="rd1-metric-label">Avg Price</div>
+              <div class="rd1-metric-value" id="rd1-metric-avg-price">$0</div>
+            </div>
+          </div>
+
+          <div class="rd1-metric-card rd1-metric-secondary">
+            <div class="rd1-metric-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                <path d="M21 3v5h-5" />
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                <path d="M3 21v-5h5" />
+              </svg>
+            </div>
+            <div class="rd1-metric-content">
+              <div class="rd1-metric-label">Active Store Locs</div>
+              <div class="rd1-metric-value" id="rd1-metric-active-stores">0</div>
             </div>
           </div>
         </div>
-      </div>
+
+        <!-- Charts Grid -->
+        <div class="rd1-charts-grid">
+          <div class="rd1-chart-container">
+            <div class="rd1-chart-header">
+              <h3>Status Distribution</h3>
+              <span class="rd1-chart-subtitle" id="rd1-chart-status-subtitle">Active vs Inactive</span>
+            </div>
+            <canvas id="rd1-chart-status"></canvas>
+          </div>
+
+          <div class="rd1-chart-container">
+            <div class="rd1-chart-header">
+              <h3>Options by Department</h3>
+              <span class="rd1-chart-subtitle" id="rd1-chart-dept-subtitle">Count by Dept</span>
+            </div>
+            <canvas id="rd1-chart-dept"></canvas>
+          </div>
+
+          <div class="rd1-chart-container">
+            <div class="rd1-chart-header">
+              <h3>Top Brands</h3>
+              <span class="rd1-chart-subtitle" id="rd1-chart-brand-subtitle">Options per Brand</span>
+            </div>
+            <canvas id="rd1-chart-brand"></canvas>
+          </div>
+
+          <div class="rd1-chart-container">
+            <div class="rd1-chart-header">
+              <h3>Top Seasons</h3>
+              <span class="rd1-chart-subtitle" id="rd1-chart-season-subtitle">By Season Code</span>
+            </div>
+            <canvas id="rd1-chart-season"></canvas>
+          </div>
+
+          <div class="rd1-chart-container">
+            <div class="rd1-chart-header">
+              <h3>Top Product Labels</h3>
+              <span class="rd1-chart-subtitle" id="rd1-chart-label-subtitle">By Label</span>
+            </div>
+            <canvas id="rd1-chart-label"></canvas>
+          </div>
+
+          <div class="rd1-chart-container">
+            <div class="rd1-chart-header">
+              <h3>Stories Distribution</h3>
+              <span class="rd1-chart-subtitle" id="rd1-chart-story-subtitle">By Story</span>
+            </div>
+            <canvas id="rd1-chart-story"></canvas>
+          </div>
+
+          <div class="rd1-chart-container">
+            <div class="rd1-chart-header">
+              <h3>Options by Chain</h3>
+              <span class="rd1-chart-subtitle" id="rd1-chart-chain-subtitle">Retail Chains</span>
+            </div>
+            <canvas id="rd1-chart-chain"></canvas>
+          </div>
+
+          <div class="rd1-chart-container">
+            <div class="rd1-chart-header">
+              <h3>Options by Market</h3>
+              <span class="rd1-chart-subtitle" id="rd1-chart-market-subtitle">Market Distribution</span>
+            </div>
+            <canvas id="rd1-chart-market"></canvas>
+          </div>
+        </div>
+
+      </section>
 
       <!-- ════════════════════════════════════════════
            PAGE: SIZE RANGE ANALYSIS
