@@ -345,6 +345,11 @@ const rdDrillState = {
   extraFilters: {},
 };
 
+const rdChartInstances = {
+  status: null,
+  market: null,
+};
+
 function populateRangingClasses(dept) {
   const classSel = $('rd-class-select');
   const subSel = $('rd-subclass-select');
@@ -376,10 +381,16 @@ function populateRangingSubclasses(dept, classId) {
 }
 
 function renderRangingOverviewList(listId, items, drillType) {
-  const ul = $(listId);
-  if (!ul) return;
-  if (!items || !items.length) {
-    ul.innerHTML = '<li>No data</li>';
+  const host = $(listId);
+  if (!host) return;
+
+  const safeItems = (items || []).filter(Boolean);
+  if (!safeItems.length) {
+    if (drillType === 'story') {
+      host.innerHTML = '<li>No data</li>';
+    } else {
+      host.innerHTML = '<div class="rd-empty">No data</div>';
+    }
     return;
   }
 
@@ -388,28 +399,239 @@ function renderRangingOverviewList(listId, items, drillType) {
     label: 'label',
     story: 'story',
   };
+  const filterParam = filterParamByType[drillType] || '';
+  const maxCount = Math.max(...safeItems.map(item => Number(item.count || 0)), 1);
 
-  const filterParam = filterParamByType[drillType];
-  ul.innerHTML = items
-    .map(item => `
-      <li>
+  if (drillType === 'season') {
+    const tones = ['rd-label-tone-0', 'rd-label-tone-1', 'rd-label-tone-2', 'rd-label-tone-0'];
+    const max = Math.max(...safeItems.map(i => Number(i.count || 0)), 1);
+    host.innerHTML = safeItems.slice(0, 6).map((item, idx) => {
+      const count = Number(item.count || 0);
+      const pct = Math.max(6, Math.round((count / max) * 100));
+      return `
         <button
           type="button"
-          class="rd-drill-link"
+          class="rd-drill-link rd-label-row ${tones[idx % tones.length]} rd-season-row"
           data-drill-source="overview"
-          data-drill-type="${esc(drillType || '')}"
+          data-drill-type="season"
           data-drill-label="${esc(item.label || '')}"
-          data-drill-count="${Number(item.count || 0)}"
-          data-drill-filter="${esc(filterParam || '')}"
+          data-drill-count="${count}"
+          data-drill-filter="${esc(filterParam)}"
           data-drill-filter-value="${esc(item.label || '')}"
           data-drill-status="A"
         >
-          <span>${esc(item.label)}</span>
-          <strong>${fmt(item.count)}</strong>
+          <span class="rd-label-fill" style="width:${pct}%"></span>
+          <span class="rd-label-text">${esc(item.label || 'N/A')}</span>
+          <strong>${fmt(count)}</strong>
         </button>
-      </li>
-    `)
-    .join('');
+      `;
+    }).join('');
+    return;
+  }
+
+  if (drillType === 'label') {
+    host.innerHTML = safeItems.slice(0, 5).map((item, idx) => {
+      const count = Number(item.count || 0);
+      const pct = Math.max(8, Math.round((count / maxCount) * 100));
+      return `
+        <button
+          type="button"
+          class="rd-drill-link rd-label-row rd-label-tone-${idx % 3}"
+          data-drill-source="overview"
+          data-drill-type="label"
+          data-drill-label="${esc(item.label || '')}"
+          data-drill-count="${count}"
+          data-drill-filter="${esc(filterParam)}"
+          data-drill-filter-value="${esc(item.label || '')}"
+          data-drill-status="A"
+        >
+          <span class="rd-label-fill" style="width:${pct}%"></span>
+          <span class="rd-label-text">${esc(item.label || 'N/A')}</span>
+          <strong>${fmt(count)}</strong>
+        </button>
+      `;
+    }).join('');
+    return;
+  }
+
+  host.innerHTML = safeItems.slice(0, 8).map(item => `
+    <li>
+      <button
+        type="button"
+        class="rd-drill-link"
+        data-drill-source="overview"
+        data-drill-type="story"
+        data-drill-label="${esc(item.label || '')}"
+        data-drill-count="${Number(item.count || 0)}"
+        data-drill-filter="${esc(filterParam)}"
+        data-drill-filter-value="${esc(item.label || '')}"
+        data-drill-status="A"
+      >
+        <span>${esc(item.label || 'N/A')}</span>
+        <strong>${fmt(item.count)}</strong>
+      </button>
+    </li>
+  `).join('');
+}
+
+function destroyRangingCharts() {
+  Object.keys(rdChartInstances).forEach(key => {
+    if (rdChartInstances[key]) {
+      rdChartInstances[key].destroy();
+      rdChartInstances[key] = null;
+    }
+  });
+}
+
+function normalizeRangingMarketRows(rows) {
+  return (rows || []).map(row => {
+    const label = row.label || row.market || row.MARKET || row.area_name || row.AREA_NAME || row.country || 'Unknown';
+    const active = Number(row.active_count ?? row.active ?? row.ACTIVE_COUNT ?? row.ACTIVE ?? 0);
+    const inactive = Number(row.inactive_count ?? row.inactive ?? row.INACTIVE_COUNT ?? row.INACTIVE ?? 0);
+    return {
+      label,
+      active_count: Number.isFinite(active) ? active : 0,
+      inactive_count: Number.isFinite(inactive) ? inactive : 0,
+    };
+  });
+}
+
+async function fetchRangingMarketRowsFallback() {
+  const params = new URLSearchParams();
+  Object.entries(rdState.selected).forEach(([key, value]) => {
+    if (value) params.set(key, value);
+  });
+  params.set('page', '1');
+  params.set('page_size', '500');
+
+  try {
+    const drill = await apiFetch(`/api/ranging-dashboard/drilldown?${params.toString()}`);
+    const grouped = new Map();
+
+    (drill.rows || []).forEach(row => {
+      const label = row.MARKET || row.AREA_NAME || row.market || row.area_name || 'Unknown';
+      const status = String(row.STATUS || row.status || '').toUpperCase();
+      if (!grouped.has(label)) grouped.set(label, { label, active_count: 0, inactive_count: 0, total: 0 });
+      const bucket = grouped.get(label);
+      if (status === 'A') bucket.active_count += 1;
+      if (status === 'I') bucket.inactive_count += 1;
+      bucket.total += 1;
+    });
+
+    return Array.from(grouped.values())
+      .sort((a, b) => b.total - a.total || String(a.label).localeCompare(String(b.label)))
+      .map(({ label, active_count, inactive_count }) => ({ label, active_count, inactive_count }));
+  } catch {
+    return [];
+  }
+}
+
+function renderRangingCharts(data) {
+  if (typeof Chart === 'undefined') return;
+  destroyRangingCharts();
+
+  const metrics = data.metrics || {};
+  const overview = data.overview || {};
+
+  const active = Number(metrics.total_active_options || 0);
+  const inactive = Number(metrics.total_inactive_options || 0);
+
+  const statusCtx = $('rd-chart-status')?.getContext('2d');
+  if (statusCtx) {
+    const statusPieInsideLabels = {
+      id: 'statusPieInsideLabels',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        const meta = chart.getDatasetMeta(0);
+        const values = chart.data.datasets?.[0]?.data || [];
+
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '700 18px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        meta.data.forEach((arc, index) => {
+          const value = Number(values[index] || 0);
+          if (!value) return;
+          const point = arc.tooltipPosition();
+          ctx.fillText(fmt(value), point.x, point.y);
+        });
+
+        ctx.restore();
+      },
+    };
+
+    rdChartInstances.status = new Chart(statusCtx, {
+      type: 'pie',
+      plugins: [statusPieInsideLabels],
+      data: {
+        labels: ['Active', 'Inactive'],
+        datasets: [{
+          data: [active, inactive],
+          backgroundColor: ['#43a047', '#d84343'],
+          borderColor: ['#ffffff', '#ffffff'],
+          borderWidth: 2,
+          hoverOffset: 4,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'left', labels: { color: '#4b5563', boxWidth: 12, usePointStyle: true } },
+          tooltip: { callbacks: { label: context => `${context.label}: ${fmt(context.parsed || 0)}` } },
+        },
+      },
+    });
+  }
+
+  const marketRows = normalizeRangingMarketRows(overview.by_market || []).slice(0, 8);
+  const marketCtx = $('rd-chart-market')?.getContext('2d');
+  if (marketCtx) {
+    const marketLabels = marketRows.map(row => row.label || 'N/A');
+    const activeData = marketRows.map(row => Number(row.active_count || 0));
+    const inactiveData = marketRows.map(row => Number(row.inactive_count || 0));
+
+    rdChartInstances.market = new Chart(marketCtx, {
+      type: 'bar',
+      data: {
+        labels: marketLabels,
+        datasets: [
+          {
+            label: 'Active',
+            data: activeData,
+            backgroundColor: '#43a047',
+            borderRadius: 2,
+          },
+          {
+            label: 'Inactive',
+            data: inactiveData,
+            backgroundColor: '#d84343',
+            borderRadius: 2,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', align: 'end', labels: { color: '#4b5563', boxWidth: 12 } },
+        },
+        scales: {
+          x: {
+            ticks: { color: '#374151' },
+            grid: { display: false },
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: '#374151' },
+            grid: { color: 'rgba(148, 163, 184, 0.35)' },
+          },
+        },
+      },
+    });
+  }
 }
 
 function renderRangingMetricValue(elId, value, drillLabel, extraFilters = {}) {
@@ -550,7 +772,7 @@ function handleRangingDrillClick(event) {
 
 function renderRangingDashboard(data) {
   const metrics = data.metrics || {};
-  const displayNull = value => (value == null ? 'null' : value);
+  const displayNull = value => (value == null ? 0 : value);
 
   renderRangingMetricValue('rd-total-active-options', metrics.total_active_options || 0, 'Total Active Options', { status: 'A' });
   renderRangingMetricValue('rd-total-inactive-options', metrics.total_inactive_options || 0, 'Total Inactive Options', { status: 'I' });
@@ -564,6 +786,7 @@ function renderRangingDashboard(data) {
   renderRangingOverviewList('rd-list-season', overview.by_season || [], 'season');
   renderRangingOverviewList('rd-list-label', overview.by_label || [], 'label');
   renderRangingOverviewList('rd-list-story', overview.by_story || [], 'story');
+  renderRangingCharts(data);
 }
 
 async function fetchRangingDashboard() {
@@ -576,6 +799,12 @@ async function fetchRangingDashboard() {
   $('rd-btn-apply').textContent = 'Applying...';
   try {
     const data = await apiFetch(`/api/ranging-dashboard?${params.toString()}`);
+    const marketRows = normalizeRangingMarketRows(data?.overview?.by_market || []);
+    if (!marketRows.length) {
+      const fallbackRows = await fetchRangingMarketRowsFallback();
+      data.overview = data.overview || {};
+      data.overview.by_market = fallbackRows;
+    }
     renderRangingDashboard(data);
   } catch (e) {
     showToast('error', 'Ranging Dashboard Error', e.message);

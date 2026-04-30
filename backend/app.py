@@ -348,6 +348,19 @@ def ranging_dashboard_summary():
             ORDER BY COUNT(DISTINCT OPTION_ID) DESC, STORY
         """, active_params).fetchall())
 
+        by_market = rows_to_list(conn.execute(f"""
+            SELECT
+                COALESCE(NULLIF(MARKET, ''), NULLIF(AREA_NAME, '')) AS label,
+                COUNT(DISTINCT CASE WHEN STATUS = 'A' THEN OPTION_ID END) AS active_count,
+                COUNT(DISTINCT CASE WHEN STATUS = 'I' THEN OPTION_ID END) AS inactive_count,
+                COUNT(DISTINCT OPTION_ID) AS total_count
+            FROM mv_option_loc
+            WHERE {where_sql}
+              AND COALESCE(NULLIF(MARKET, ''), NULLIF(AREA_NAME, '')) IS NOT NULL
+            GROUP BY COALESCE(NULLIF(MARKET, ''), NULLIF(AREA_NAME, ''))
+            ORDER BY total_count DESC, label
+        """, params).fetchall())
+
         conn.close()
 
         return jsonify({
@@ -364,6 +377,7 @@ def ranging_dashboard_summary():
                 "by_season": by_season,
                 "by_label": by_label,
                 "by_story": by_story,
+                "by_market": by_market,
             }
         })
     except Exception as e:

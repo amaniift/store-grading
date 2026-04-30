@@ -1073,12 +1073,12 @@
         <div class="page-header">
           <div>
             <h1 class="page-title">Ranging Dashboard</h1>
-            <p class="page-desc">Option and store coverage view from mv_option_loc across active and inactive assortments.</p>
+            <p class="page-desc">Option and store coverage with active vs inactive mix, market distribution, and seasonal insights.</p>
           </div>
         </div>
 
-        <div class="filter-panel">
-          <div class="filter-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 12px;">
+        <div class="filter-panel rd-wireframe-shell">
+          <div class="filter-grid rd-filter-grid">
             <div class="filter-group">
               <label for="rd-brand-select" class="filter-label">Brand</label>
               <div class="select-wrapper">
@@ -1128,69 +1128,78 @@
               </div>
             </div>
           </div>
-          <div class="filter-actions">
+          <div class="filter-actions rd-filter-actions">
             <button type="button" class="btn btn-primary" id="rd-btn-apply">Apply</button>
             <button type="button" class="btn btn-secondary" id="rd-btn-reset">Reset</button>
           </div>
         </div>
 
-        <div class="rd-top-cards">
-          <div class="rd-hero-card rd-hero-card-active">
-            <span class="rd-hero-label">Total Active Options</span>
-            <strong class="rd-hero-value" id="rd-total-active-options">0</strong>
+        <div class="rd-main-card">
+          <div class="rd-chart-grid">
+            <section class="rd-chart-panel">
+              <h3>Active vs. Inactive Options</h3>
+              <div class="rd-chart-canvas-wrap">
+                <canvas id="rd-chart-status"></canvas>
+              </div>
+            </section>
+            <section class="rd-chart-panel">
+              <h3>Options by Market</h3>
+              <div class="rd-chart-canvas-wrap">
+                <canvas id="rd-chart-market"></canvas>
+              </div>
+            </section>
           </div>
-          <div class="rd-hero-card rd-hero-card-inactive">
-            <span class="rd-hero-label">Total Inactive Options</span>
-            <strong class="rd-hero-value" id="rd-total-inactive-options">0</strong>
-          </div>
-        </div>
 
-        <div class="rd-metric-grid">
-          <div class="rd-metric-card rd-metric-blue">
-            <span class="rd-metric-title">Total Active Option Stores</span>
-            <strong class="rd-metric-value" id="rd-total-active-option-stores">0</strong>
-          </div>
-          <div class="rd-metric-card rd-metric-orange">
-            <span class="rd-metric-title">Total Inactive Option Stores</span>
-            <strong class="rd-metric-value" id="rd-total-inactive-option-stores">0</strong>
-          </div>
-          <div class="rd-metric-card rd-metric-teal">
-            <span class="rd-metric-title">Options in R</span>
-            <strong class="rd-metric-value" id="rd-options-in-r">0</strong>
-          </div>
-          <div class="rd-metric-card rd-metric-purple">
-            <span class="rd-metric-title">Options in C</span>
-            <strong class="rd-metric-value" id="rd-options-in-c">0</strong>
-          </div>
-          <div class="rd-metric-card rd-metric-amber">
-            <span class="rd-metric-title">Options in P</span>
-            <strong class="rd-metric-value" id="rd-options-in-p">0</strong>
-          </div>
-        </div>
-
-        <div class="filter-panel">
-          <div class="filter-panel-header">
-            <div class="filter-panel-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
-              </svg>
-              <span>Active Seasons Overview</span>
+          <div class="rd-metric-grid">
+            <div class="rd-metric-card rd-metric-blue">
+              <span class="rd-metric-title">Total Active Option Stores</span>
+              <strong class="rd-metric-value" id="rd-total-active-option-stores">0</strong>
             </div>
+            <div class="rd-metric-card rd-metric-orange">
+              <span class="rd-metric-title">Total Inactive Option Stores</span>
+              <strong class="rd-metric-value" id="rd-total-inactive-option-stores">0</strong>
+            </div>
+            <div class="rd-metric-card rd-metric-teal">
+              <span class="rd-metric-title">Options in R</span>
+              <strong class="rd-metric-value" id="rd-options-in-r">0</strong>
+            </div>
+            <div class="rd-metric-card rd-metric-purple">
+              <span class="rd-metric-title">Options in C</span>
+              <strong class="rd-metric-value" id="rd-options-in-c">0</strong>
+            </div>
+            <div class="rd-metric-card rd-metric-amber">
+              <span class="rd-metric-title">Options in P</span>
+              <strong class="rd-metric-value" id="rd-options-in-p">0</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-panel rd-overview-shell">
+          <div class="rd-overview-header">
+            <h2>Active Seasons Overview</h2>
           </div>
           <div class="rd-overview-grid">
             <div class="rd-overview-col">
               <h3>By Season</h3>
-              <ul id="rd-list-season" class="rd-overview-list"></ul>
+              <div id="rd-list-season" class="rd-season-chips"></div>
+              <p class="rd-overview-footnote">Click to filter by season</p>
             </div>
             <div class="rd-overview-col">
               <h3>By Product Label</h3>
-              <ul id="rd-list-label" class="rd-overview-list"></ul>
+              <div id="rd-list-label" class="rd-label-bars"></div>
+              <p class="rd-overview-footnote">Click to filter by product label</p>
             </div>
             <div class="rd-overview-col">
               <h3>By Story</h3>
-              <ul id="rd-list-story" class="rd-overview-list"></ul>
+              <ul id="rd-list-story" class="rd-overview-list rd-story-list"></ul>
+              <p class="rd-overview-footnote">Click to filter by story</p>
             </div>
           </div>
+        </div>
+
+        <div class="rd-hidden-metric-anchor" aria-hidden="true">
+          <span id="rd-total-active-options">0</span>
+          <span id="rd-total-inactive-options">0</span>
         </div>
 
       </section>
