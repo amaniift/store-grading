@@ -459,6 +459,26 @@ body {
   background: rgba(59,130,246,0.04);
 }
 
+/* Status badges in the Ranging Upload tracker */
+.ru-status-cell { vertical-align: middle; }
+.ru-status-badge {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* Status color mappings */
+.ru-status-processed { background: #ecfdf5; color: #065f46; }
+.ru-status-fully-submitted { background: #ecfdf5; color: #065f46; }
+.ru-status-new { background: #eff6ff; color: #1e40af; }
+.ru-status-processed-with-errors { background: #fff7ed; color: #92400e; }
+.ru-status-partially-submitted-with-errors { background: #fff7ed; color: #92400e; }
+.ru-status-errored { background: #fef2f2; color: #991b1b; }
+
+
 
 /* ═══════════════════════════════════════════════════════════════════
    FILTER PANEL

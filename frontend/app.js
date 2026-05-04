@@ -3867,19 +3867,25 @@ async function initRangingUpload() {
   const downloadBtn = $('ru-btn-download');
   const statusBody = $('ru-status-body');
 
+  function getStatusClass(status) {
+    if (!status) return '';
+    return 'ru-status-' + String(status).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  }
+
   function addStatusRow(row) {
     // remove placeholder row if present
     if (statusBody.children.length === 1 && statusBody.children[0].children.length && statusBody.children[0].children[0].colSpan == 8) {
       statusBody.innerHTML = '';
     }
     const tr = document.createElement('tr');
+    const statusClass = getStatusClass(row.status);
     tr.innerHTML = `
       <td>${esc(row.processId)}</td>
       <td>${esc(row.fileName)}</td>
       <td>${esc(row.fileSize)}</td>
       <td>${esc(row.timestamp)}</td>
       <td>${esc(row.uploadedBy)}</td>
-      <td>${esc(row.status)}</td>
+      <td class="ru-status-cell"><span class="ru-status-badge ${statusClass}">${esc(row.status)}</span></td>
       <td>${esc(row.template)}</td>
       <td><a href="#" class="ru-download-link">Download</a></td>
     `;
