@@ -466,24 +466,31 @@ function renderRangingOverviewList(listId, items, drillType) {
   }
 
   const sliced = safeItems.slice(0, 8);
-  host.innerHTML = sliced.map((item, idx) => `
-    <li>
-      <button
-        type="button"
-        class="rd-drill-link rd-story-item ${getGradientColorClass(idx, sliced.length)}"
-        data-drill-source="overview"
-        data-drill-type="story"
-        data-drill-label="${esc(item.label || '')}"
-        data-drill-count="${Number(item.count || 0)}"
-        data-drill-filter="${esc(filterParam)}"
-        data-drill-filter-value="${esc(item.label || '')}"
-        data-drill-status="A"
-      >
-        <span>${esc(item.label || 'N/A')}</span>
-        <strong>${fmt(item.count)}</strong>
-      </button>
-    </li>
-  `).join('');
+  const maxStoryCount = Math.max(...sliced.map(i => Number(i.count || 0)), 1);
+  host.innerHTML = sliced.map((item, idx) => {
+    const count = Number(item.count || 0);
+    const pct = Math.max(6, Math.round((count / maxStoryCount) * 100));
+    const gradientClass = getGradientColorClass(idx, sliced.length);
+    return `
+      <li>
+        <button
+          type="button"
+          class="rd-drill-link rd-label-row ${gradientClass}"
+          data-drill-source="overview"
+          data-drill-type="story"
+          data-drill-label="${esc(item.label || '')}"
+          data-drill-count="${count}"
+          data-drill-filter="${esc(filterParam)}"
+          data-drill-filter-value="${esc(item.label || '')}"
+          data-drill-status="A"
+        >
+          <span class="rd-label-fill" style="width:${pct}%"></span>
+          <span class="rd-label-text">${esc(item.label || 'N/A')}</span>
+          <strong>${fmt(count)}</strong>
+        </button>
+      </li>
+    `;
+  }).join('');
 }
 
 function destroyRangingCharts() {
