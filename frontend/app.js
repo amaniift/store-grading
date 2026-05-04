@@ -3836,10 +3836,94 @@ async function init() {
   await loadFilters();
   await initForecastFilters();
   await initRangingDashboard();
+  await initRangingUpload();
   initSraPage();
   initDfcPage();
   initAttachSizeRangePage();
 }
 
 init();
+
+async function initRangingUpload() {
+  if (!$('page-ranging-upload')) return;
+
+  const tplSelect = $('ru-template-select');
+  const dlSelect = $('ru-download-template-select');
+  const options = [
+    { value: 'option_location', label: 'option/location ranging upload' },
+    { value: 'plr_upload', label: 'PLR upload' },
+  ];
+
+  tplSelect.innerHTML = '<option value="">-- Select Template --</option>';
+  dlSelect.innerHTML = '<option value="">-- Select Template --</option>';
+  options.forEach(o => {
+    tplSelect.appendChild(new Option(o.label, o.value));
+    dlSelect.appendChild(new Option(o.label, o.value));
+  });
+
+  const fileInput = $('ru-file-input');
+  const uploadBtn = $('ru-btn-upload');
+  const downloadBtn = $('ru-btn-download');
+  const statusBody = $('ru-status-body');
+
+  function addStatusRow(row) {
+    // remove placeholder row if present
+    if (statusBody.children.length === 1 && statusBody.children[0].children.length && statusBody.children[0].children[0].colSpan == 8) {
+      statusBody.innerHTML = '';
+    }
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${esc(row.processId)}</td>
+      <td>${esc(row.fileName)}</td>
+      <td>${esc(row.fileSize)}</td>
+      <td>${esc(row.timestamp)}</td>
+      <td>${esc(row.uploadedBy)}</td>
+      <td>${esc(row.status)}</td>
+      <td>${esc(row.template)}</td>
+      <td><a href="#" class="ru-download-link">Download</a></td>
+    `;
+    statusBody.appendChild(tr);
+  }
+
+  uploadBtn.addEventListener('click', () => {
+    const tpl = tplSelect.value;
+    const tplText = tplSelect.options[tplSelect.selectedIndex]?.text || '';
+    if (!tpl) {
+      showToast('warning', 'Template Required', 'Select a template before uploading.');
+      return;
+    }
+    const files = fileInput.files || [];
+    if (!files.length) {
+      showToast('warning', 'File Required', 'Choose a file to upload.');
+      return;
+    }
+    const file = files[0];
+    const processId = `RU-${Date.now()}`;
+    const sizeKb = `${Math.round((file.size || 0) / 102.4) / 10} KB`;
+    const now = new Date().toLocaleString('en-US');
+
+    // For now this is UI-only: append to tracker and mark as New
+    addStatusRow({ processId, fileName: file.name, fileSize: sizeKb, timestamp: now, uploadedBy: 'USER', status: 'New', template: tplText });
+    showToast('success', 'Upload Queued', `${file.name} added to upload tracker (UI only).`);
+    // clear input
+    fileInput.value = '';
+  });
+
+  downloadBtn.addEventListener('click', () => {
+    const sel = dlSelect.value;
+    if (!sel) { showToast('warning', 'Select Template', 'Choose a template to download.'); return; }
+    // simple client-side template download placeholder
+    const tplText = dlSelect.options[dlSelect.selectedIndex].text || 'template.csv';
+    const blob = new Blob(["col1,col2,col3\n"], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = tplText.replace(/\s+/g, '_') + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('success', 'Template Downloaded', `Downloaded ${tplText}`);
+  });
+}
 

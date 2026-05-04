@@ -1205,6 +1205,71 @@
       </section>
 
       <!-- ════════════════════════════════════════════
+           PAGE: RANGING UPLOAD
+      ══════════════════════════════════════════════ -->
+      <section class="page hidden" id="page-ranging-upload" aria-label="Ranging Upload">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Ranging Upload</h1>
+            <p class="page-desc">Upload option/location ranging files or PLR files. Use the template selector and UPLOAD button below.</p>
+          </div>
+        </div>
+
+        <div class="filter-panel rd-wireframe-shell">
+          <div class="filter-grid" style="grid-template-columns: 1fr 1fr; gap:20px;">
+            <div>
+              <label class="filter-label">Template</label>
+              <div class="select-wrapper">
+                <select id="ru-template-select" class="filter-select">
+                  <option value="">-- Select Template --</option>
+                </select>
+              </div>
+              <label class="filter-label" style="margin-top:10px;">Upload Master Profile</label>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <input type="file" id="ru-file-input">
+                <button type="button" class="btn btn-primary" id="ru-btn-upload">Upload File</button>
+              </div>
+            </div>
+
+            <div>
+              <label class="filter-label">Download Template</label>
+              <div class="select-wrapper">
+                <select id="ru-download-template-select" class="filter-select">
+                  <option value="">-- Select Template --</option>
+                </select>
+              </div>
+              <div style="margin-top:10px;">
+                <button type="button" class="btn btn-secondary" id="ru-btn-download">Download</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rd-main-card" style="margin-top:16px;">
+          <h3>Upload Status Tracker</h3>
+          <div style="overflow:auto; max-height:360px;"> 
+            <table class="table table-striped" id="ru-status-table" style="width:100%;">
+              <thead>
+                <tr>
+                  <th>Process Id</th>
+                  <th>File Name</th>
+                  <th>File Size</th>
+                  <th>Upload Timestamp</th>
+                  <th>Uploaded By</th>
+                  <th>Status</th>
+                  <th>Template</th>
+                  <th>Download</th>
+                </tr>
+              </thead>
+              <tbody id="ru-status-body">
+                <tr><td colspan="8" style="text-align:center; color:var(--text-muted);">No uploads yet</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════
            PAGE: RANGING DASHBOARD DETAILS
       ══════════════════════════════════════════════ -->
       <section class="page hidden" id="page-ranging-dashboard-details" aria-label="Ranging Dashboard Details">
