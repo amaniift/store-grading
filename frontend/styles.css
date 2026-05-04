@@ -1594,6 +1594,36 @@ body {
   border-bottom: none;
 }
 
+/* Editable cells in Ranging Drill table */
+.rd-drill-editable {
+  cursor: pointer;
+  position: relative;
+  padding: 8px 12px;
+  background: rgba(59, 130, 246, 0.08);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.rd-drill-editable:hover {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.rd-drill-edit-input {
+  padding: 4px 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--accent-primary);
+  color: var(--text-primary);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-family: inherit;
+}
+
+.rd-drill-edit-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
 /* Grade badges */
 
 .grade-badge {

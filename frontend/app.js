@@ -695,7 +695,7 @@ function buildRangingDrillQuery(extraFilters) {
 async function fetchRangingDrilldown() {
   const tbody = $('rd-drill-tbody');
   if (tbody) {
-    tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; padding:24px; color: var(--text-muted);">Loading details...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="15" style="text-align:center; padding:24px; color: var(--text-muted);">Loading details...</td></tr>';
   }
 
   try {
@@ -713,7 +713,7 @@ async function fetchRangingDrilldown() {
     $('rd-drill-next').disabled = rdDrillState.page >= totalPages;
 
     if (!data.rows || !data.rows.length) {
-      tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; padding:24px; color: var(--text-muted);">No matching option-store records found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="15" style="text-align:center; padding:24px; color: var(--text-muted);">No matching option-store records found.</td></tr>';
       return;
     }
 
@@ -721,7 +721,6 @@ async function fetchRangingDrilldown() {
       <tr>
         <td class="mono">${esc(r.OPTION_ID || '')}</td>
         <td>${esc(r.STORE_NAME || '')}</td>
-        <td>${esc(r.STATUS || '')}</td>
         <td>${esc(r.BRAND || '')}</td>
         <td title="${esc(r.OPTION_DESC || '')}">${esc(r.OPTION_DESC || '')}</td>
         <td class="mono">${r.DEPT ?? '—'} ${r.DEPT_NAME ? `<span class="text-dim">${esc(r.DEPT_NAME)}</span>` : ''}</td>
@@ -732,12 +731,21 @@ async function fetchRangingDrilldown() {
         <td>${esc(r.STORY || '')}</td>
         <td>${esc(r.AREA_NAME || '')}</td>
         <td style="text-align:right;" class="mono">${r.SELLING_UNIT_RETAIL == null ? '—' : fmt(r.SELLING_UNIT_RETAIL)}</td>
+        <td class="rd-drill-editable" data-field="plr_status" data-option-id="${esc(r.OPTION_ID || '')}" data-store-name="${esc(r.STORE_NAME || '')}">${esc(r.PLR_STATUS || 'N')}</td>
+        <td class="rd-drill-editable" data-field="replenishable" data-option-id="${esc(r.OPTION_ID || '')}" data-store-name="${esc(r.STORE_NAME || '')}">${esc(r.REPLENISHABLE || 'N')}</td>
+        <td>${esc(r.STATUS || '')}</td>
       </tr>
     `).join('');
+    
+    // Attach click handlers to editable cells
+    document.querySelectorAll('.rd-drill-editable').forEach(cell => {
+      cell.style.cursor = 'pointer';
+      cell.addEventListener('click', handleRangingDrillEditCell);
+    });
   } catch (e) {
     showToast('error', 'Drilldown Error', e.message);
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="13" style="text-align:center; padding:24px; color: var(--error);">${esc(e.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="15" style="text-align:center; padding:24px; color: var(--error);">${esc(e.message)}</td></tr>`;
     }
   }
 }
@@ -832,6 +840,49 @@ async function fetchRangingDashboard() {
     $('rd-btn-apply').disabled = false;
     $('rd-btn-apply').textContent = 'Apply';
   }
+}
+
+function handleRangingDrillEditCell(event) {
+  const cell = event.currentTarget;
+  if (!cell.classList.contains('rd-drill-editable')) return;
+  
+  // Prevent editing if already in edit mode
+  if (cell.querySelector('input')) return;
+  
+  const currentValue = cell.textContent.trim();
+  const field = cell.dataset.field;
+  const optionId = cell.dataset.optionId;
+  const storeName = cell.dataset.storeName;
+  
+  // Create a select dropdown with Y/N options
+  const select = document.createElement('select');
+  select.className = 'rd-drill-edit-input';
+  select.innerHTML = '<option value="Y">Y</option><option value="N">N</option>';
+  select.value = currentValue;
+  
+  // Clear cell and add select
+  cell.innerHTML = '';
+  cell.appendChild(select);
+  select.focus();
+  
+  function saveValue() {
+    const newValue = select.value;
+    cell.textContent = newValue;
+    cell.style.cursor = 'pointer';
+    
+    // In a real implementation, send this to the backend
+    // For now, just update the UI
+    showToast('info', 'Field Updated', `${field === 'plr_status' ? 'PLR Status' : 'Replenishable'} updated to ${newValue}`);
+  }
+  
+  select.addEventListener('blur', saveValue);
+  select.addEventListener('change', saveValue);
+  select.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      cell.textContent = currentValue;
+      cell.style.cursor = 'pointer';
+    }
+  });
 }
 
 async function initRangingDashboard() {
