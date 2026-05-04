@@ -425,6 +425,16 @@ body {
   line-height: 1.5;
 }
 
+/* Ranging Upload header overrides for better contrast on dark theme */
+.ru-title {
+  background: none !important;
+  -webkit-text-fill-color: unset !important;
+  color: #ffffff !important;
+}
+.ru-desc {
+  color: rgba(255,255,255,0.85) !important;
+}
+
 
 /* ═══════════════════════════════════════════════════════════════════
    FILTER PANEL

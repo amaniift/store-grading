@@ -94,6 +94,7 @@ const PAGE_VISIBILITY_CONFIG = [
   { id: 'page-sales-history', label: 'Sales History', description: 'Analyze sales by hierarchy and location.', sidebar: true },
   { id: 'page-forecasts', label: 'Forecasts', description: 'Run and review forecast scenarios.', sidebar: true },
   { id: 'page-ranging-dashboard', label: 'Ranging Dashboard', description: 'Track active/inactive options and R/C/P mix.', sidebar: true },
+  { id: 'page-ranging-upload', label: 'Ranging Upload', description: 'Upload ranging and PLR templates.', sidebar: true },
   { id: 'page-size-range-analysis', label: 'Size Range Analysis', description: 'Manage size profile analysis workflows.', sidebar: true },
   { id: 'page-demand-filtering-config', label: 'Demand Filtering Config', description: 'Configure demand filtering rules.', sidebar: false },
   { id: 'page-attach-size-range', label: 'Attach Size Range', description: 'Review and attach size range mappings.', sidebar: false },
@@ -3925,5 +3926,13 @@ async function initRangingUpload() {
     URL.revokeObjectURL(url);
     showToast('success', 'Template Downloaded', `Downloaded ${tplText}`);
   });
+
+  // Add some sample rows to the status tracker for initial UI
+  const sampleRows = [
+    { processId: 'RU-1001', fileName: 'option_location_upload_2026-04-01.xlsx', fileSize: '12.4 KB', timestamp: '2026-04-01 09:12:03', uploadedBy: 'ANZEL_BAILEY', status: 'Processed', template: 'option/location ranging upload' },
+    { processId: 'RU-1002', fileName: 'plr_upload_sample.csv', fileSize: '3.1 KB', timestamp: '2026-04-02 11:22:10', uploadedBy: 'TEST.USER', status: 'Processed with Errors', template: 'PLR upload' },
+    { processId: 'RU-1003', fileName: 'option_location_changes.csv', fileSize: '2.6 KB', timestamp: '2026-04-03 14:05:22', uploadedBy: 'QA_USER', status: 'New', template: 'option/location ranging upload' },
+  ];
+  sampleRows.forEach(r => addStatusRow(r));
 }
 
