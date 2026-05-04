@@ -3929,7 +3929,7 @@ async function initRangingUpload() {
 
   // Add some sample rows to the status tracker for initial UI
   const sampleRows = [
-    { processId: 'RU-1001', fileName: 'option_location_upload_2026-04-01.xlsx', fileSize: '12.4 KB', timestamp: '2026-04-01 09:12:03', uploadedBy: 'ANZEL_BAILEY', status: 'Processed', template: 'option/location ranging upload' },
+    { processId: 'RU-1001', fileName: 'option_location_upload_2026-04-01.xlsx', fileSize: '12.4 KB', timestamp: '2026-04-01 09:12:03', uploadedBy: 'TEST.USER2', status: 'Processed', template: 'option/location ranging upload' },
     { processId: 'RU-1002', fileName: 'plr_upload_sample.csv', fileSize: '3.1 KB', timestamp: '2026-04-02 11:22:10', uploadedBy: 'TEST.USER', status: 'Processed with Errors', template: 'PLR upload' },
     { processId: 'RU-1003', fileName: 'option_location_changes.csv', fileSize: '2.6 KB', timestamp: '2026-04-03 14:05:22', uploadedBy: 'QA_USER', status: 'New', template: 'option/location ranging upload' },
     { processId: 'RU-1004', fileName: 'option_loc_batch_april.csv', fileSize: '8.0 KB', timestamp: '2026-04-04 08:11:12', uploadedBy: 'OPERATOR1', status: 'Processed', template: 'option/location ranging upload' },
