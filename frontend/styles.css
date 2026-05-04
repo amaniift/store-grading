@@ -1108,19 +1108,11 @@ body {
 
 .rd-story-list li {
   padding: 4px 0;
-  border-bottom: 1px dashed #d5dbe4;
+  border-bottom: none;
 }
 
 .rd-story-list li:last-child {
   border-bottom: none;
-}
-
-.rd-story-list .rd-drill-link {
-  color: #3f4755;
-}
-
-.rd-story-list .rd-drill-link strong {
-  color: #3f6fad;
 }
 
 .rd-overview-footnote {
