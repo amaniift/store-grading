@@ -435,6 +435,30 @@ body {
   color: rgba(255,255,255,0.85) !important;
 }
 
+/* Ranging Upload status table tweaks for better contrast on light card */
+#ru-status-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+#ru-status-table thead th {
+  padding: 10px 12px;
+  text-align: left;
+  color: #374151;
+  font-weight: 700;
+  text-transform: none;
+  background: transparent;
+  border-bottom: 1px solid #e6eef6;
+}
+#ru-status-table tbody td {
+  padding: 10px 12px;
+  color: #1f2937;
+  border-bottom: 1px solid #eef4f8;
+}
+#ru-status-table tbody tr:hover {
+  background: rgba(59,130,246,0.04);
+}
+
 
 /* ═══════════════════════════════════════════════════════════════════
    FILTER PANEL

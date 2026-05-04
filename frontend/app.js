@@ -3932,6 +3932,13 @@ async function initRangingUpload() {
     { processId: 'RU-1001', fileName: 'option_location_upload_2026-04-01.xlsx', fileSize: '12.4 KB', timestamp: '2026-04-01 09:12:03', uploadedBy: 'ANZEL_BAILEY', status: 'Processed', template: 'option/location ranging upload' },
     { processId: 'RU-1002', fileName: 'plr_upload_sample.csv', fileSize: '3.1 KB', timestamp: '2026-04-02 11:22:10', uploadedBy: 'TEST.USER', status: 'Processed with Errors', template: 'PLR upload' },
     { processId: 'RU-1003', fileName: 'option_location_changes.csv', fileSize: '2.6 KB', timestamp: '2026-04-03 14:05:22', uploadedBy: 'QA_USER', status: 'New', template: 'option/location ranging upload' },
+    { processId: 'RU-1004', fileName: 'option_loc_batch_april.csv', fileSize: '8.0 KB', timestamp: '2026-04-04 08:11:12', uploadedBy: 'OPERATOR1', status: 'Processed', template: 'option/location ranging upload' },
+    { processId: 'RU-1005', fileName: 'plr_april_variant.csv', fileSize: '5.2 KB', timestamp: '2026-04-05 10:02:50', uploadedBy: 'OPERATOR2', status: 'Errored', template: 'PLR upload' },
+    { processId: 'RU-1006', fileName: 'loc_updates_may.xlsx', fileSize: '9.7 KB', timestamp: '2026-04-06 15:45:01', uploadedBy: 'DATA_ADMIN', status: 'Processed with Errors', template: 'option/location ranging upload' },
+    { processId: 'RU-1007', fileName: 'plr_testcase_01.csv', fileSize: '1.8 KB', timestamp: '2026-04-07 09:30:15', uploadedBy: 'QA_USER', status: 'New', template: 'PLR upload' },
+    { processId: 'RU-1008', fileName: 'option_loc_bulk_2026_04_08.xlsx', fileSize: '22.1 KB', timestamp: '2026-04-08 12:22:33', uploadedBy: 'IMPORT_SERVICE', status: 'Partially Submitted with Errors', template: 'option/location ranging upload' },
+    { processId: 'RU-1009', fileName: 'plr_final_release.csv', fileSize: '4.0 KB', timestamp: '2026-04-09 16:05:44', uploadedBy: 'RELEASE_USER', status: 'Fully Submitted', template: 'PLR upload' },
+    { processId: 'RU-1010', fileName: 'option_loc_retry.csv', fileSize: '2.9 KB', timestamp: '2026-04-10 11:11:11', uploadedBy: 'OPERATOR1', status: 'New', template: 'option/location ranging upload' },
   ];
   sampleRows.forEach(r => addStatusRow(r));
 }
