@@ -1061,6 +1061,18 @@ body {
 .rd-label-tone-1 .rd-label-fill { background: #ef8f1b; }
 .rd-label-tone-2 .rd-label-fill { background: #d84343; }
 
+/* Green to Red Gradient Color Classes */
+.rd-gradient-green .rd-label-fill { background: #22c55e !important; }
+.rd-gradient-yellow .rd-label-fill { background: #eab308 !important; }
+.rd-gradient-orange .rd-label-fill { background: #f97316 !important; }
+.rd-gradient-red .rd-label-fill { background: #ef4444 !important; }
+
+/* Story Items Gradient Text Colors */
+.rd-story-item.rd-gradient-green span { color: #22c55e; font-weight: 700; }
+.rd-story-item.rd-gradient-yellow span { color: #eab308; font-weight: 700; }
+.rd-story-item.rd-gradient-orange span { color: #f97316; font-weight: 700; }
+.rd-story-item.rd-gradient-red span { color: #ef4444; font-weight: 700; }
+
 .rd-label-text,
 .rd-label-row strong {
   position: relative;

@@ -402,16 +402,25 @@ function renderRangingOverviewList(listId, items, drillType) {
   const filterParam = filterParamByType[drillType] || '';
   const maxCount = Math.max(...safeItems.map(item => Number(item.count || 0)), 1);
 
+  function getGradientColorClass(idx, total) {
+    const ratio = total > 1 ? idx / (total - 1) : 0;
+    if (ratio <= 0.25) return 'rd-gradient-green';
+    if (ratio <= 0.5) return 'rd-gradient-yellow';
+    if (ratio <= 0.75) return 'rd-gradient-orange';
+    return 'rd-gradient-red';
+  }
+
   if (drillType === 'season') {
-    const tones = ['rd-label-tone-0', 'rd-label-tone-1', 'rd-label-tone-2', 'rd-label-tone-0'];
     const max = Math.max(...safeItems.map(i => Number(i.count || 0)), 1);
-    host.innerHTML = safeItems.slice(0, 6).map((item, idx) => {
+    const sliced = safeItems.slice(0, 6);
+    host.innerHTML = sliced.map((item, idx) => {
       const count = Number(item.count || 0);
       const pct = Math.max(6, Math.round((count / max) * 100));
+      const gradientClass = getGradientColorClass(idx, sliced.length);
       return `
         <button
           type="button"
-          class="rd-drill-link rd-label-row ${tones[idx % tones.length]} rd-season-row"
+          class="rd-drill-link rd-label-row ${gradientClass} rd-season-row"
           data-drill-source="overview"
           data-drill-type="season"
           data-drill-label="${esc(item.label || '')}"
@@ -430,13 +439,15 @@ function renderRangingOverviewList(listId, items, drillType) {
   }
 
   if (drillType === 'label') {
-    host.innerHTML = safeItems.slice(0, 5).map((item, idx) => {
+    const sliced = safeItems.slice(0, 5);
+    host.innerHTML = sliced.map((item, idx) => {
       const count = Number(item.count || 0);
       const pct = Math.max(8, Math.round((count / maxCount) * 100));
+      const gradientClass = getGradientColorClass(idx, sliced.length);
       return `
         <button
           type="button"
-          class="rd-drill-link rd-label-row rd-label-tone-${idx % 3}"
+          class="rd-drill-link rd-label-row ${gradientClass}"
           data-drill-source="overview"
           data-drill-type="label"
           data-drill-label="${esc(item.label || '')}"
@@ -454,11 +465,12 @@ function renderRangingOverviewList(listId, items, drillType) {
     return;
   }
 
-  host.innerHTML = safeItems.slice(0, 8).map(item => `
+  const sliced = safeItems.slice(0, 8);
+  host.innerHTML = sliced.map((item, idx) => `
     <li>
       <button
         type="button"
-        class="rd-drill-link"
+        class="rd-drill-link rd-story-item ${getGradientColorClass(idx, sliced.length)}"
         data-drill-source="overview"
         data-drill-type="story"
         data-drill-label="${esc(item.label || '')}"
