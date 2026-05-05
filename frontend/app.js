@@ -706,10 +706,6 @@ async function fetchRangingDrilldown() {
     const rowsOnPage = Array.isArray(data.rows) ? data.rows.length : Number(data.count || 0);
 
     const totalPages = Math.max(1, Math.ceil(rdDrillState.total / rdDrillState.pageSize));
-    $('rd-drill-total').textContent = fmt(rdDrillState.total);
-    $('rd-drill-page').textContent = String(rdDrillState.page);
-    $('rd-drill-count').textContent = fmt(rowsOnPage);
-    $('rd-drill-total-pages').textContent = fmt(totalPages);
     $('rd-drill-page-info').textContent = `Page ${rdDrillState.page} of ${totalPages}`;
     $('rd-drill-prev').disabled = rdDrillState.page <= 1;
     $('rd-drill-next').disabled = rdDrillState.page >= totalPages;
@@ -717,6 +713,23 @@ async function fetchRangingDrilldown() {
     if (!data.rows || !data.rows.length) {
       tbody.innerHTML = '<tr><td colspan="15" style="text-align:center; padding:24px; color: var(--text-muted);">No matching option-store records found.</td></tr>';
       return;
+    }
+
+    // Fetch high-level metrics for this drill selection (use same filters but without pagination)
+    try {
+      const metricParams = new URLSearchParams();
+      Object.entries(rdState.selected).forEach(([k, v]) => { if (v) metricParams.set(k, v); });
+      Object.entries(rdDrillState.extraFilters || {}).forEach(([k, v]) => { if (v != null && v !== '') metricParams.set(k, v); });
+      const metricData = await apiFetch(`/api/ranging-dashboard?${metricParams.toString()}`);
+      const metrics = metricData.metrics || {};
+      $('rd-drill-total-active-option-stores').textContent = fmt(metrics.total_active_option_stores || 0);
+      $('rd-drill-total-inactive-option-stores').textContent = fmt(metrics.total_inactive_option_stores || 0);
+      $('rd-drill-options-in-r').textContent = fmt(metrics.options_in_r ?? 0);
+      $('rd-drill-options-in-c').textContent = fmt(metrics.options_in_c ?? 0);
+      $('rd-drill-options-in-p').textContent = fmt(metrics.options_in_p ?? 0);
+    } catch (mErr) {
+      // silently ignore metrics fetch errors but log
+      console.warn('Failed to fetch drill metrics', mErr);
     }
 
     tbody.innerHTML = data.rows.map(r => `
