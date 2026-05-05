@@ -1256,7 +1256,16 @@
         </div>
 
         <div class="rd-main-card" style="margin-top:16px;">
-          <h3>Upload Status Tracker</h3>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 style="margin:0;">Upload Status Tracker</h3>
+            <button type="button" class="btn btn-secondary btn-sm" id="ru-btn-refresh-status" style="padding: 4px 10px; font-size: 0.75rem;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="margin-right:4px;">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+              Refresh
+            </button>
+          </div>
           <div style="overflow:auto; max-height:360px;"> 
             <table class="table table-striped" id="ru-status-table" style="width:100%;">
               <thead>
@@ -1325,27 +1334,28 @@
         <div class="table-wrapper">
           <table class="data-table" id="rd-drill-table">
             <thead>
-              <tr>
-                <th>Option ID</th>
-                <th>Store</th>
-                <th>Brand</th>
-                <th>Option Desc</th>
-                <th>Dept</th>
-                <th>Class</th>
-                <th>Subclass</th>
-                <th>Season</th>
-                <th>Label</th>
-                <th>Story</th>
-                <th>Country</th>
-                <th style="text-align:right;">Retail</th>
-                <th>PLR Status</th>
-                <th>Replenishable</th>
-                <th>Status</th>
+              <tr id="rd-drill-header-row">
+                <th><div class="th-content"><span>Country</span><i class="filter-trigger" data-col="country">▼</i></div></th>
+                <th><div class="th-content"><span>Store</span><i class="filter-trigger" data-col="store">▼</i></div></th>
+                <th><div class="th-content"><span>Brand</span><i class="filter-trigger" data-col="brand">▼</i></div></th>
+                <th><div class="th-content"><span>Dept</span><i class="filter-trigger" data-col="dept">▼</i></div></th>
+                <th><div class="th-content"><span>Class</span><i class="filter-trigger" data-col="class">▼</i></div></th>
+                <th><div class="th-content"><span>Subclass</span><i class="filter-trigger" data-col="subclass">▼</i></div></th>
+                <th><div class="th-content"><span>Option</span><i class="filter-trigger" data-col="option">▼</i></div></th>
+                <th><div class="th-content"><span>Opt Desc</span><i class="filter-trigger" data-col="opt_desc">▼</i></div></th>
+                <th><div class="th-content"><span>PLR Status</span><i class="filter-trigger" data-col="plr_status">▼</i></div></th>
+                <th><div class="th-content"><span>Replenishable</span><i class="filter-trigger" data-col="replenishable">▼</i></div></th>
+                <th><div class="th-content"><span>Status</span><i class="filter-trigger" data-col="status">▼</i></div></th>
+                <th><div class="th-content"><span>Timestamp</span><i class="filter-trigger" data-col="timestamp">▼</i></div></th>
+                <th><div class="th-content"><span>User ID</span><i class="filter-trigger" data-col="user_id">▼</i></div></th>
+                <th><div class="th-content"><span>Label</span><i class="filter-trigger" data-col="label">▼</i></div></th>
+                <th><div class="th-content"><span>Story</span><i class="filter-trigger" data-col="story">▼</i></div></th>
+                <th><div class="th-content"><span>Season</span><i class="filter-trigger" data-col="season">▼</i></div></th>
               </tr>
             </thead>
             <tbody id="rd-drill-tbody">
               <tr>
-                <td colspan="15" style="text-align:center; padding:24px; color: var(--text-muted);">Choose a number on Ranging Dashboard to view details.</td>
+                <td colspan="16" style="text-align:center; padding:24px; color: var(--text-muted);">Choose a number on Ranging Dashboard to view details.</td>
               </tr>
             </tbody>
           </table>
@@ -2012,6 +2022,135 @@
       </div>
     </div>
   </div>
+
+  <!-- Upload Error Details Modal -->
+  <div class="modal-overlay hidden" id="modal-upload-errors">
+    <div class="modal" style="max-width: 600px;">
+      <div class="modal-header">
+        <div class="modal-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--error); border-color: rgba(239, 68, 68, 0.2);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <h2 class="modal-title">Upload Error Details</h2>
+        <button class="modal-close" id="ru-errors-close" style="background:none; border:none; color:var(--text-muted); font-size:24px; cursor:pointer; margin-left:auto;">×</button>
+      </div>
+      <div class="modal-body" id="ru-errors-body">
+        <!-- Error content injected here -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="ru-errors-done">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Popover -->
+  <div id="rd-filter-popover" class="filter-popover hidden">
+    <div class="popover-header">
+      <input type="text" id="rd-popover-search" placeholder="Search...">
+    </div>
+    <div class="popover-list" id="rd-popover-list"></div>
+    <div class="popover-footer">
+      <button id="rd-popover-clear" class="btn-clear-filter">Clear Filter</button>
+    </div>
+  </div>
+
+  <style>
+    .rd-drill-editable { cursor: pointer; }
+    .rd-drill-editable:hover { background: rgba(var(--primary-rgb), 0.05); }
+
+    /* Filter Popover */
+    .filter-popover {
+      position: fixed;
+      z-index: 1000;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      width: 220px;
+      max-height: 350px;
+      display: flex;
+      flex-direction: column;
+      animation: popIn 0.2s ease-out;
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: translateY(-5px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .popover-header {
+      padding: 10px;
+      border-bottom: 1px solid #334155;
+    }
+    #rd-popover-search {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 4px;
+      color: #f8fafc;
+      padding: 6px 10px;
+      font-size: 0.8rem;
+    }
+    #rd-popover-search:focus { outline: none; border-color: #3b82f6; }
+    .popover-list {
+      overflow-y: auto;
+      flex: 1;
+      padding: 4px 0;
+      max-height: 240px;
+    }
+    .popover-item {
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      transition: all 0.15s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .popover-item:hover {
+      background: #334155;
+      color: #3b82f6;
+    }
+    .popover-item.selected {
+      background: rgba(59, 130, 246, 0.15);
+      color: #3b82f6;
+      font-weight: 600;
+    }
+    .popover-footer {
+      padding: 8px;
+      border-top: 1px solid #334155;
+      text-align: center;
+    }
+    .btn-clear-filter {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 0.7rem;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .btn-clear-filter:hover { color: #f43f5e; }
+
+    .th-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+      width: 100%;
+    }
+    .filter-trigger {
+      color: #64748b;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-style: normal;
+      font-size: 0.7rem;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .filter-trigger:hover { color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
+    .filter-trigger.active { color: #3b82f6; font-weight: bold; }
+  </style>
 
   <script src="app.js"></script>
 </body>

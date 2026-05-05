@@ -10,6 +10,7 @@
 'use strict';
 
 const API_BASE = '';
+const CURRENT_USER_ID = 'TEST.USER';
 
 // ═══════════════════════════════════════════════════════════════════
 // HELPERS
@@ -31,9 +32,59 @@ async function apiFetch(path, options = {}) {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
-  return json;
+  
+  const contentType = res.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    return json;
+  }
+  
+  const text = await res.text();
+  if (!res.ok) {
+    // If it's a 404 or 500, the body might be HTML.
+    const snippet = text.length > 100 ? text.substring(0, 100) + '...' : text;
+    throw new Error(`HTTP ${res.status}: ${snippet}`);
+  }
+  return text;
+}
+
+function initResizableTable(tableId) {
+  const table = $(tableId);
+  if (!table) return;
+
+  const headers = table.querySelectorAll('thead th');
+  headers.forEach(th => {
+    const resizer = th.querySelector('.resizer');
+    if (!resizer) return;
+
+    let x = 0;
+    let w = 0;
+
+    const onMouseDown = (e) => {
+      e.preventDefault();
+      x = e.clientX;
+      const styles = window.getComputedStyle(th);
+      w = parseInt(styles.width, 10);
+
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+      table.classList.add('resizing');
+    };
+
+    const onMouseMove = (e) => {
+      const dx = e.clientX - x;
+      th.style.width = `${w + dx}px`;
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      table.classList.remove('resizing');
+    };
+
+    resizer.addEventListener('mousedown', onMouseDown);
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -344,6 +395,7 @@ const rdDrillState = {
   total: 0,
   title: '',
   extraFilters: {},
+  columnFilters: {},
 };
 
 const rdChartInstances = {
@@ -689,13 +741,18 @@ function buildRangingDrillQuery(extraFilters) {
 
   params.set('page', String(rdDrillState.page));
   params.set('page_size', String(rdDrillState.pageSize));
+  
+  // Column filters
+  for (const [col, val] of Object.entries(rdDrillState.columnFilters || {})) {
+    if (val) params.set(`f_${col}`, val);
+  }
   return params;
 }
 
 async function fetchRangingDrilldown() {
   const tbody = $('rd-drill-tbody');
   if (tbody) {
-    tbody.innerHTML = '<tr><td colspan="15" style="text-align:center; padding:24px; color: var(--text-muted);">Loading details...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="16" style="text-align:center; padding:24px; color: var(--text-muted);">Loading details...</td></tr>';
   }
 
   try {
@@ -711,7 +768,7 @@ async function fetchRangingDrilldown() {
     $('rd-drill-next').disabled = rdDrillState.page >= totalPages;
 
     if (!data.rows || !data.rows.length) {
-      tbody.innerHTML = '<tr><td colspan="15" style="text-align:center; padding:24px; color: var(--text-muted);">No matching option-store records found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="16" style="text-align:center; padding:24px; color: var(--text-muted);">No matching option-store records found.</td></tr>';
       return;
     }
 
@@ -720,7 +777,10 @@ async function fetchRangingDrilldown() {
       const metricParams = new URLSearchParams();
       Object.entries(rdState.selected).forEach(([k, v]) => { if (v) metricParams.set(k, v); });
       Object.entries(rdDrillState.extraFilters || {}).forEach(([k, v]) => { if (v != null && v !== '') metricParams.set(k, v); });
-      const metricData = await apiFetch(`/api/ranging-dashboard?${metricParams.toString()}`);
+      for (const [col, val] of Object.entries(rdDrillState.columnFilters || {})) {
+        if (val) metricParams.set(`f_${col}`, val);
+      }
+      const metricData = await apiFetch(`/api/ranging-dashboard/drill-metrics?${metricParams.toString()}`);
       const metrics = metricData.metrics || {};
       $('rd-drill-total-active-option-stores').textContent = fmt(metrics.total_active_option_stores || 0);
       $('rd-drill-total-inactive-option-stores').textContent = fmt(metrics.total_inactive_option_stores || 0);
@@ -734,33 +794,31 @@ async function fetchRangingDrilldown() {
 
     tbody.innerHTML = data.rows.map(r => `
       <tr>
-        <td class="mono">${esc(r.OPTION_ID || '')}</td>
+        <td>${esc(r.AREA_NAME || '')}</td>
         <td>${esc(r.STORE_NAME || '')}</td>
         <td>${esc(r.BRAND || '')}</td>
-        <td title="${esc(r.OPTION_DESC || '')}">${esc(r.OPTION_DESC || '')}</td>
         <td class="mono">${r.DEPT ?? '—'} ${r.DEPT_NAME ? `<span class="text-dim">${esc(r.DEPT_NAME)}</span>` : ''}</td>
         <td class="mono">${r.CLASS ?? '—'} ${r.CLASS_NAME ? `<span class="text-dim">${esc(r.CLASS_NAME)}</span>` : ''}</td>
         <td class="mono">${r.SUBCLASS ?? '—'} ${r.SUB_NAME ? `<span class="text-dim">${esc(r.SUB_NAME)}</span>` : ''}</td>
-        <td>${esc(r.SEASON_CODE || '')}</td>
+        <td class="mono">${esc(r.OPTION_ID || '')}</td>
+        <td title="${esc(r.OPTION_DESC || '')}">${esc(r.OPTION_DESC || '')}</td>
+        <td class="rd-drill-editable" data-field="plr_status" data-option-id="${esc(r.OPTION_ID || '')}" data-loc="${r.LOC}">${esc(r.PLR_STATUS || 'N')}</td>
+        <td class="rd-drill-editable" data-field="replenishable" data-option-id="${esc(r.OPTION_ID || '')}" data-loc="${r.LOC}">${esc(r.REPLENISHABLE || 'N')}</td>
+        <td>${esc(r.STATUS || '')}</td>
+        <td class="mono" style="font-size:0.7rem;">${r.TIMESTAMP ? (typeof r.TIMESTAMP === 'number' ? new Date(r.TIMESTAMP * 1000).toLocaleString() : esc(r.TIMESTAMP)) : '—'}</td>
+        <td class="mono">${esc(r.USER_ID || '—')}</td>
         <td>${esc(r.LABEL || '')}</td>
         <td>${esc(r.STORY || '')}</td>
-        <td>${esc(r.AREA_NAME || '')}</td>
-        <td style="text-align:right;" class="mono">${r.SELLING_UNIT_RETAIL == null ? '—' : fmt(r.SELLING_UNIT_RETAIL)}</td>
-        <td class="rd-drill-editable" data-field="plr_status" data-option-id="${esc(r.OPTION_ID || '')}" data-store-name="${esc(r.STORE_NAME || '')}">${esc(r.PLR_STATUS || 'N')}</td>
-        <td class="rd-drill-editable" data-field="replenishable" data-option-id="${esc(r.OPTION_ID || '')}" data-store-name="${esc(r.STORE_NAME || '')}">${esc(r.REPLENISHABLE || 'N')}</td>
-        <td>${esc(r.STATUS || '')}</td>
+        <td>${esc(r.SEASON_CODE || '')}</td>
       </tr>
     `).join('');
     
     // Attach click handlers to editable cells
-    document.querySelectorAll('.rd-drill-editable').forEach(cell => {
-      cell.style.cursor = 'pointer';
-      cell.addEventListener('click', handleRangingDrillEditCell);
-    });
+    $('rd-drill-table').addEventListener('click', handleRangingDrillEditCell);
   } catch (e) {
     showToast('error', 'Drilldown Error', e.message);
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="15" style="text-align:center; padding:24px; color: var(--error);">${esc(e.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="16" style="text-align:center; padding:24px; color: var(--error);">${esc(e.message)}</td></tr>`;
     }
   }
 }
@@ -858,44 +916,82 @@ async function fetchRangingDashboard() {
 }
 
 function handleRangingDrillEditCell(event) {
-  const cell = event.currentTarget;
-  if (!cell.classList.contains('rd-drill-editable')) return;
-  
-  // Prevent editing if already in edit mode
-  if (cell.querySelector('input')) return;
+  const cell = event.target.closest('.rd-drill-editable');
+  if (!cell) return;
+  if (cell.querySelector('select')) return;
   
   const currentValue = cell.textContent.trim();
   const field = cell.dataset.field;
   const optionId = cell.dataset.optionId;
-  const storeName = cell.dataset.storeName;
+  const loc = cell.dataset.loc;
   
-  // Create a select dropdown with Y/N options
   const select = document.createElement('select');
   select.className = 'rd-drill-edit-input';
   select.innerHTML = '<option value="Y">Y</option><option value="N">N</option>';
   select.value = currentValue;
   
-  // Clear cell and add select
   cell.innerHTML = '';
   cell.appendChild(select);
   select.focus();
   
-  function saveValue() {
+  let isSaving = false;
+  async function saveValue() {
+    if (isSaving) return;
     const newValue = select.value;
-    cell.textContent = newValue;
-    cell.style.cursor = 'pointer';
-    
-    // In a real implementation, send this to the backend
-    // For now, just update the UI
-    showToast('info', 'Field Updated', `${field === 'plr_status' ? 'PLR Status' : 'Replenishable'} updated to ${newValue}`);
+    if (newValue === currentValue) {
+      cell.textContent = currentValue;
+      return;
+    }
+
+    const locId = parseInt(loc);
+    if (isNaN(locId)) {
+      showToast('error', 'Update Failed', 'Invalid location ID.');
+      cell.textContent = currentValue;
+      return;
+    }
+
+    isSaving = true;
+    try {
+      const res = await apiFetch('/api/ranging/update-v2', {
+        method: 'POST',
+        body: JSON.stringify({
+          option_id: optionId,
+          loc: locId,
+          field: field === 'plr_status' ? 'PLR_STATUS' : 'REPLENISHABLE',
+          value: newValue,
+          user_id: CURRENT_USER_ID
+        })
+      });
+
+      if (res.success) {
+        cell.textContent = newValue;
+        showToast('success', 'Saved', `${field === 'plr_status' ? 'PLR Status' : 'Replenishable'} updated.`);
+        const tr = cell.closest('tr');
+        if (tr) {
+          const cells = tr.querySelectorAll('td');
+          if (cells.length >= 13) {
+            cells[11].textContent = res.updated_at || '—';
+            cells[12].textContent = res.user_id || '—';
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Update error:', err);
+      showToast('error', 'Update Failed', err.message);
+      cell.textContent = currentValue;
+    } finally {
+      isSaving = false;
+    }
   }
   
-  select.addEventListener('blur', saveValue);
   select.addEventListener('change', saveValue);
+  select.addEventListener('blur', () => {
+    if (!isSaving) cell.textContent = currentValue;
+  });
   select.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      isSaving = true; // prevent blur trigger
       cell.textContent = currentValue;
-      cell.style.cursor = 'pointer';
     }
   });
 }
@@ -982,6 +1078,100 @@ async function initRangingDashboard() {
     rdDrillState.page += 1;
     fetchRangingDrilldown();
   });
+
+  initResizableTable('rd-drill-table');
+  $('rd-drill-table').addEventListener('click', handleRangingDrillEditCell);
+  
+  // Column Filter Triggers
+  document.querySelectorAll('.filter-trigger').forEach(trigger => {
+    trigger.addEventListener('click', (e) => showFilterPopover(e, trigger.dataset.col));
+  });
+
+  // Global Filter Popover Handlers
+  $('rd-popover-search').addEventListener('input', (e) => {
+    const term = e.target.value.toLowerCase();
+    document.querySelectorAll('.popover-item[data-value]').forEach(item => {
+      const visible = item.dataset.value.toLowerCase().includes(term);
+      item.classList.toggle('hidden', !visible);
+    });
+  });
+
+  $('rd-popover-clear').addEventListener('click', () => {
+    if (currentFilterCol) {
+      applyColumnFilter(currentFilterCol, '');
+      $('rd-filter-popover').classList.add('hidden');
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    const popover = $('rd-filter-popover');
+    if (popover && !popover.classList.contains('hidden')) {
+      if (!e.target.closest('.filter-popover') && !e.target.closest('.filter-trigger')) {
+        popover.classList.add('hidden');
+      }
+    }
+  });
+}
+
+let currentFilterCol = null;
+
+async function showFilterPopover(event, col) {
+  event.stopPropagation();
+  const trigger = event.currentTarget;
+  const popover = $('rd-filter-popover');
+  const search = $('rd-popover-search');
+  const list = $('rd-popover-list');
+  
+  currentFilterCol = col;
+  search.value = '';
+  
+  const rect = trigger.getBoundingClientRect();
+  popover.style.top = `${rect.bottom + window.scrollY + 5}px`;
+  popover.style.left = `${Math.max(10, rect.left + window.scrollX - 180)}px`;
+  popover.classList.remove('hidden');
+  
+  list.innerHTML = '<div class="popover-item">Loading values...</div>';
+  
+  try {
+    const params = buildRangingDrillQuery(rdDrillState.extraFilters);
+    params.set('column', col);
+    // Remove pagination and current column filter from this specific request
+    params.delete('page');
+    params.delete('page_size');
+    
+    const data = await apiFetch(`/api/ranging-dashboard/drill-distinct-values?${params.toString()}`);
+    renderPopoverList(data.values || []);
+    search.focus();
+  } catch (err) {
+    list.innerHTML = '<div class="popover-item text-danger">Error loading values</div>';
+  }
+}
+
+function renderPopoverList(values) {
+  const list = $('rd-popover-list');
+  const selectedValue = rdDrillState.columnFilters[currentFilterCol] || '';
+  
+  const html = values.map(val => `
+    <div class="popover-item ${val === selectedValue ? 'selected' : ''}" data-value="${esc(val)}">
+      ${esc(val)}
+    </div>
+  `).join('');
+  
+  list.innerHTML = html || '<div class="popover-item">No values found</div>';
+  
+  list.querySelectorAll('.popover-item[data-value]').forEach(item => {
+    item.addEventListener('click', () => {
+      applyColumnFilter(currentFilterCol, item.dataset.value);
+      $('rd-filter-popover').classList.add('hidden');
+    });
+  });
+}
+
+function applyColumnFilter(col, value) {
+  rdDrillState.columnFilters[col] = value;
+  const trigger = document.querySelector(`.filter-trigger[data-col="${col}"]`);
+  if (trigger) trigger.classList.toggle('active', !!value);
+  fetchRangingDrilldown(1);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -3932,6 +4122,7 @@ async function initRangingUpload() {
   const uploadBtn = $('ru-btn-upload');
   const downloadBtn = $('ru-btn-download');
   const statusBody = $('ru-status-body');
+  const refreshBtn = $('ru-btn-refresh-status');
 
   function getStatusClass(status) {
     if (!status) return '';
@@ -3939,24 +4130,78 @@ async function initRangingUpload() {
   }
 
   function addStatusRow(row) {
-    // remove placeholder row if present
     if (statusBody.children.length === 1 && statusBody.children[0].children.length && statusBody.children[0].children[0].colSpan == 8) {
       statusBody.innerHTML = '';
     }
     const tr = document.createElement('tr');
     const statusClass = getStatusClass(row.status);
+    const hasErrors = row.status.toLowerCase().includes('error');
+    
     tr.innerHTML = `
       <td>${esc(row.processId)}</td>
       <td>${esc(row.fileName)}</td>
       <td>${esc(row.fileSize)}</td>
       <td>${esc(row.timestamp)}</td>
       <td>${esc(row.uploadedBy)}</td>
-      <td class="ru-status-cell"><span class="ru-status-badge ${statusClass}">${esc(row.status)}</span></td>
+      <td class="ru-status-cell">
+        <span class="ru-status-badge ${statusClass}" ${hasErrors ? 'style="cursor:pointer; text-decoration:underline;" data-error-detail="true"' : ''}>
+          ${esc(row.status)}
+        </span>
+      </td>
       <td>${esc(row.template)}</td>
       <td><a href="#" class="ru-download-link">Download</a></td>
     `;
+
+    if (hasErrors) {
+      const badge = tr.querySelector('[data-error-detail]');
+      badge.addEventListener('click', () => showUploadErrors(row));
+    }
+
     statusBody.appendChild(tr);
   }
+
+  function showUploadErrors(row) {
+    const modal = $('modal-upload-errors');
+    const body = $('ru-errors-body');
+    
+    const successCount = row.successCount || 0;
+    const errorCount = row.errorCount || 0;
+    const errorMsg = row.errorMessage || 'Unknown error occurred during processing.';
+
+    body.innerHTML = `
+      <div style="margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+          <span style="color:var(--text-secondary);">Process ID:</span>
+          <span style="font-weight:600; font-family:monospace;">${esc(row.processId)}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+          <span style="color:var(--text-secondary);">File:</span>
+          <span style="font-weight:600;">${esc(row.fileName)}</span>
+        </div>
+      </div>
+      
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px;">
+        <div style="background:rgba(16, 185, 129, 0.08); padding:16px; border-radius:10px; border:1px solid rgba(16, 185, 129, 0.2); text-align:center;">
+          <div style="font-size:24px; font-weight:700; color:var(--success);">${successCount}</div>
+          <div style="font-size:12px; color:var(--text-secondary); text-transform:uppercase; margin-top:4px;">Successfully Loaded</div>
+        </div>
+        <div style="background:rgba(239, 68, 68, 0.08); padding:16px; border-radius:10px; border:1px solid rgba(239, 68, 68, 0.2); text-align:center;">
+          <div style="font-size:24px; font-weight:700; color:var(--error);">${errorCount}</div>
+          <div style="font-size:12px; color:var(--text-secondary); text-transform:uppercase; margin-top:4px;">Failed Options</div>
+        </div>
+      </div>
+      
+      <div style="background:var(--bg-elevated); padding:16px; border-radius:10px; border:1px solid var(--border-subtle);">
+        <h4 style="margin:0 0 8px 0; font-size:13px; color:var(--text-primary);">Error Detail:</h4>
+        <p style="margin:0; color:var(--error); font-size:13px; line-height:1.5;">${esc(errorMsg)}</p>
+      </div>
+    `;
+    
+    modal.classList.remove('hidden');
+  }
+
+  $('ru-errors-close').addEventListener('click', () => $('modal-upload-errors').classList.add('hidden'));
+  $('ru-errors-done').addEventListener('click', () => $('modal-upload-errors').classList.add('hidden'));
 
   uploadBtn.addEventListener('click', () => {
     const tpl = tplSelect.value;
@@ -3975,17 +4220,22 @@ async function initRangingUpload() {
     const sizeKb = `${Math.round((file.size || 0) / 102.4) / 10} KB`;
     const now = new Date().toLocaleString('en-US');
 
-    // For now this is UI-only: append to tracker and mark as New
-    addStatusRow({ processId, fileName: file.name, fileSize: sizeKb, timestamp: now, uploadedBy: 'USER', status: 'New', template: tplText });
+    addStatusRow({ 
+      processId, 
+      fileName: file.name, 
+      fileSize: sizeKb, 
+      timestamp: now, 
+      uploadedBy: 'USER', 
+      status: 'New', 
+      template: tplText 
+    });
     showToast('success', 'Upload Queued', `${file.name} added to upload tracker (UI only).`);
-    // clear input
     fileInput.value = '';
   });
 
   downloadBtn.addEventListener('click', () => {
     const sel = dlSelect.value;
     if (!sel) { showToast('warning', 'Select Template', 'Choose a template to download.'); return; }
-    // simple client-side template download placeholder
     const tplText = dlSelect.options[dlSelect.selectedIndex].text || 'template.csv';
     const blob = new Blob(["col1,col2,col3\n"], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -3999,17 +4249,31 @@ async function initRangingUpload() {
     showToast('success', 'Template Downloaded', `Downloaded ${tplText}`);
   });
 
-  // Add some sample rows to the status tracker for initial UI
+  refreshBtn.addEventListener('click', () => {
+    refreshBtn.disabled = true;
+    refreshBtn.innerHTML = '<span class="mini-spinner"></span> Refreshing...';
+    setTimeout(() => {
+      statusBody.innerHTML = '';
+      sampleRows.forEach(r => addStatusRow(r));
+      refreshBtn.disabled = false;
+      refreshBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="margin-right:4px;">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg> Refresh`;
+      showToast('success', 'Status Refreshed', 'Upload tracker updated.');
+    }, 800);
+  });
+
   const sampleRows = [
-    { processId: 'RU-1001', fileName: 'option_location_upload_2026-04-01.xlsx', fileSize: '12.4 KB', timestamp: '2026-04-01 09:12:03', uploadedBy: 'TEST.USER2', status: 'Processed', template: 'Option/Location Ranging upload' },
-    { processId: 'RU-1002', fileName: 'plr_upload_sample.csv', fileSize: '3.1 KB', timestamp: '2026-04-02 11:22:10', uploadedBy: 'TEST.USER', status: 'Processed with Errors', template: 'PLR upload' },
+    { processId: 'RU-1001', fileName: 'option_location_upload_2026-04-01.xlsx', fileSize: '12.4 KB', timestamp: '2026-04-01 09:12:03', uploadedBy: 'TEST.USER2', status: 'Processed', template: 'Option/Location Ranging upload', successCount: 150, errorCount: 0 },
+    { processId: 'RU-1002', fileName: 'plr_upload_sample.csv', fileSize: '3.1 KB', timestamp: '2026-04-02 11:22:10', uploadedBy: 'TEST.USER', status: 'Processed with Errors', template: 'PLR upload', successCount: 5, errorCount: 3, errorMessage: '3 options have erred out due to hierarchy conflicts.' },
     { processId: 'RU-1003', fileName: 'option_location_changes.csv', fileSize: '2.6 KB', timestamp: '2026-04-03 14:05:22', uploadedBy: 'QA_USER', status: 'New', template: 'Option/Location Ranging upload' },
-    { processId: 'RU-1004', fileName: 'option_loc_batch_april.csv', fileSize: '8.0 KB', timestamp: '2026-04-04 08:11:12', uploadedBy: 'OPERATOR1', status: 'Processed', template: 'Option/Location Ranging upload' },
-    { processId: 'RU-1005', fileName: 'plr_april_variant.csv', fileSize: '5.2 KB', timestamp: '2026-04-05 10:02:50', uploadedBy: 'OPERATOR2', status: 'Errored', template: 'PLR upload' },
-    { processId: 'RU-1006', fileName: 'loc_updates_may.xlsx', fileSize: '9.7 KB', timestamp: '2026-04-06 15:45:01', uploadedBy: 'DATA_ADMIN', status: 'Processed with Errors', template: 'Option/Location Ranging upload' },
+    { processId: 'RU-1004', fileName: 'option_loc_batch_april.csv', fileSize: '8.0 KB', timestamp: '2026-04-04 08:11:12', uploadedBy: 'OPERATOR1', status: 'Processed', template: 'Option/Location Ranging upload', successCount: 220, errorCount: 0 },
+    { processId: 'RU-1005', fileName: 'plr_april_variant.csv', fileSize: '5.2 KB', timestamp: '2026-04-05 10:02:50', uploadedBy: 'OPERATOR2', status: 'Errored', template: 'PLR upload', successCount: 0, errorCount: 12, errorMessage: 'File format mismatch: missing required column VPN.' },
+    { processId: 'RU-1006', fileName: 'loc_updates_may.xlsx', fileSize: '9.7 KB', timestamp: '2026-04-06 15:45:01', uploadedBy: 'DATA_ADMIN', status: 'Processed with Errors', template: 'Option/Location Ranging upload', successCount: 88, errorCount: 2, errorMessage: '2 stores (1001, 1002) not found in location master.' },
     { processId: 'RU-1007', fileName: 'plr_testcase_01.csv', fileSize: '1.8 KB', timestamp: '2026-04-07 09:30:15', uploadedBy: 'QA_USER', status: 'New', template: 'PLR upload' },
-    { processId: 'RU-1008', fileName: 'option_loc_bulk_2026_04_08.xlsx', fileSize: '22.1 KB', timestamp: '2026-04-08 12:22:33', uploadedBy: 'IMPORT_SERVICE', status: 'Partially Submitted with Errors', template: 'Option/Location Ranging upload' },
-    { processId: 'RU-1009', fileName: 'plr_final_release.csv', fileSize: '4.0 KB', timestamp: '2026-04-09 16:05:44', uploadedBy: 'RELEASE_USER', status: 'Fully Submitted', template: 'PLR upload' },
+    { processId: 'RU-1008', fileName: 'option_loc_bulk_2026_04_08.xlsx', fileSize: '22.1 KB', timestamp: '2026-04-08 12:22:33', uploadedBy: 'IMPORT_SERVICE', status: 'Partially Submitted with Errors', template: 'Option/Location Ranging upload', successCount: 412, errorCount: 15, errorMessage: '15 items failed validation: Invalid Season Code.' },
+    { processId: 'RU-1009', fileName: 'plr_final_release.csv', fileSize: '4.0 KB', timestamp: '2026-04-09 16:05:44', uploadedBy: 'RELEASE_USER', status: 'Fully Submitted', template: 'PLR upload', successCount: 65, errorCount: 0 },
     { processId: 'RU-1010', fileName: 'option_loc_retry.csv', fileSize: '2.9 KB', timestamp: '2026-04-10 11:11:11', uploadedBy: 'OPERATOR1', status: 'New', template: 'Option/Location Ranging upload' },
   ];
   sampleRows.forEach(r => addStatusRow(r));

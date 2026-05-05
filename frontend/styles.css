@@ -1239,7 +1239,7 @@ body {
 }
 
 #page-ranging-dashboard-details .rd-drill-summary-grid {
-  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
 }
 
 #page-ranging-dashboard-details .data-table td {
@@ -1577,6 +1577,29 @@ body {
   white-space: nowrap;
   border-bottom: 1px solid var(--border-subtle);
   user-select: none;
+  position: relative; /* For resizer */
+}
+
+.resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  cursor: col-resize;
+  user-select: none;
+  height: 100%;
+  z-index: 10;
+  transition: background 0.2s;
+}
+
+.resizer:hover,
+.resizing .resizer {
+  background: var(--accent-primary);
+  width: 2px;
+}
+
+.data-table.resizing {
+  cursor: col-resize;
 }
 
 .data-table th.sortable {
@@ -1617,6 +1640,25 @@ body {
 
 .data-table tbody tr:last-child td {
   border-bottom: none;
+}
+
+/* Specific overrides for Ranging Dashboard Details to fit all columns */
+#page-ranging-dashboard-details .data-table {
+  table-layout: fixed;
+}
+
+#page-ranging-dashboard-details .data-table th,
+#page-ranging-dashboard-details .data-table td {
+  white-space: normal;
+  word-break: break-word;
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#page-ranging-dashboard-details .data-table th {
+  vertical-align: bottom;
 }
 
 /* Editable cells in Ranging Drill table */

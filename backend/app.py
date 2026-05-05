@@ -118,7 +118,7 @@ def index():
 
 @app.route("/api/health")
 def health():
-    return jsonify({"status": "ok"})
+    return jsonify({"status": "ok", "version": "v3", "ts": datetime.now().isoformat()})
 
 
 # ── Filter Data ──────────────────────────────────────────────────────────────
@@ -219,7 +219,8 @@ def get_subclasses():
         return jsonify({"error": str(e)}), 500
 
 
-def build_ranging_dashboard_where(args):
+def build_ranging_dashboard_where(args, prefix=""):
+    p = f"{prefix}." if prefix else ""
     clauses = ["1=1"]
     params = []
 
@@ -231,22 +232,22 @@ def build_ranging_dashboard_where(args):
     store = args.get("store", type=str)
 
     if brand:
-        clauses.append("BRAND = ?")
+        clauses.append(f"{p}BRAND = ?")
         params.append(brand)
     if dept is not None:
-        clauses.append("DEPT = ?")
+        clauses.append(f"{p}DEPT = ?")
         params.append(dept)
     if class_ is not None:
-        clauses.append("CLASS = ?")
+        clauses.append(f"{p}CLASS = ?")
         params.append(class_)
     if subclass is not None:
-        clauses.append("SUBCLASS = ?")
+        clauses.append(f"{p}SUBCLASS = ?")
         params.append(subclass)
     if country:
-        clauses.append("AREA_NAME = ?")
+        clauses.append(f"{p}AREA_NAME = ?")
         params.append(country)
     if store:
-        clauses.append("STORE_NAME = ?")
+        clauses.append(f"{p}STORE_NAME = ?")
         params.append(store)
 
     return " AND ".join(clauses), params
@@ -305,7 +306,7 @@ def ranging_dashboard_filters():
 @app.route("/api/ranging-dashboard")
 def ranging_dashboard_summary():
     try:
-        where_sql, params = build_ranging_dashboard_where(request.args)
+        where_sql, params = build_ranging_dashboard_where(request.args, prefix="T")
         conn = get_db()
 
         metrics = conn.execute(f"""
@@ -385,10 +386,122 @@ def ranging_dashboard_summary():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/ranging-dashboard/drill-metrics")
+def ranging_dashboard_drill_metrics():
+    try:
+        where_sql, where_params = build_ranging_dashboard_where(request.args, prefix="T")
+        
+        # Map frontend keys to SQL columns
+        mapping = {
+            "COUNTRY": "AREA_NAME",
+            "STORE": "STORE_NAME",
+            "OPTION": "OPTION_ID",
+            "OPT_DESC": "OPTION_DESC",
+            "TIMESTAMP": "LAST_UPDATE_DATETIME",
+            "USER_ID": "LAST_UPDATE_ID",
+            "SEASON": "SEASON_CODE",
+            "DEPT": "DEPT",
+            "CLASS": "CLASS",
+            "SUBCLASS": "SUBCLASS",
+            "BRAND": "BRAND",
+            "STATUS": "STATUS",
+            "PLR_STATUS": "PLR_STATUS",
+            "REPLENISHABLE": "REPLENISHABLE",
+            "LABEL": "LABEL",
+            "STORY": "STORY"
+        }
+
+        # Add column filters
+        for key in request.args:
+            if key.startswith("f_") and request.args.get(key):
+                col = key[2:].upper()
+                sql_col = f"T.{mapping.get(col, col)}"
+                where_sql += f" AND {sql_col} LIKE ?"
+                where_params.append(f"%{request.args.get(key)}%")
+
+        conn = get_db()
+        metrics_sql = f"""
+            SELECT 
+                COUNT(CASE WHEN STATUS = 'A' THEN 1 END) as total_active_option_stores,
+                COUNT(CASE WHEN STATUS = 'I' THEN 1 END) as total_inactive_option_stores,
+                COUNT(CASE WHEN STATUS = 'R' THEN 1 END) as options_in_r,
+                COUNT(CASE WHEN STATUS = 'C' THEN 1 END) as options_in_c,
+                COUNT(CASE WHEN STATUS = 'P' THEN 1 END) as options_in_p
+            FROM mv_option_loc T
+            WHERE {where_sql}
+        """
+        row = conn.execute(metrics_sql, where_params).fetchone()
+        conn.close()
+        
+        return jsonify({
+            "metrics": {
+                "total_active_option_stores": row["total_active_option_stores"],
+                "total_inactive_option_stores": row["total_inactive_option_stores"],
+                "options_in_r": row["options_in_r"],
+                "options_in_c": row["options_in_c"],
+                "options_in_p": row["options_in_p"]
+            }
+        })
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/ranging-dashboard/drill-distinct-values")
+def ranging_dashboard_drill_distinct_values():
+    try:
+        column = request.args.get("column", "").upper()
+        if not column:
+            return jsonify({"error": "column parameter is required"}), 400
+
+        mapping = {
+            "COUNTRY": "AREA_NAME",
+            "STORE": "STORE_NAME",
+            "OPTION": "OPTION_ID",
+            "OPT_DESC": "OPTION_DESC",
+            "TIMESTAMP": "LAST_UPDATE_DATETIME",
+            "USER_ID": "LAST_UPDATE_ID",
+            "SEASON": "SEASON_CODE",
+            "DEPT": "DEPT",
+            "CLASS": "CLASS",
+            "SUBCLASS": "SUBCLASS",
+            "BRAND": "BRAND",
+            "STATUS": "STATUS",
+            "PLR_STATUS": "PLR_STATUS",
+            "REPLENISHABLE": "REPLENISHABLE",
+            "LABEL": "LABEL",
+            "STORY": "STORY"
+        }
+        raw_col = mapping.get(column, column)
+        sql_col = f"T.{raw_col}"
+
+        where_sql, where_params = build_ranging_dashboard_where(request.args, prefix="T")
+        
+        for key in request.args:
+            if key.startswith("f_") and request.args.get(key):
+                col_key = key[2:].upper()
+                if col_key == column:
+                    continue
+                col_sql = f"T.{mapping.get(col_key, col_key)}"
+                where_sql += f" AND {col_sql} LIKE ?"
+                where_params.append(f"%{request.args.get(key)}%")
+
+        conn = get_db()
+        sql = f"SELECT DISTINCT {sql_col} FROM mv_option_loc T WHERE {where_sql} AND {sql_col} IS NOT NULL ORDER BY {sql_col} LIMIT 500"
+        rows = conn.execute(sql, where_params).fetchall()
+        values = [str(r[0]) for r in rows]
+        conn.close()
+        
+        return jsonify({"values": values})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/ranging-dashboard/drilldown")
 def ranging_dashboard_drilldown():
     try:
-        where_sql, params = build_ranging_dashboard_where(request.args)
+        where_sql, params = build_ranging_dashboard_where(request.args, prefix="T")
 
         # Additional drill filters from clicked metric/list row
         status = request.args.get("status", type=str)
@@ -397,16 +510,16 @@ def ranging_dashboard_drilldown():
         story = request.args.get("story", type=str)
 
         if status:
-            where_sql += " AND STATUS = ?"
+            where_sql += " AND T.STATUS = ?"
             params.append(status)
         if season:
-            where_sql += " AND SEASON_CODE = ?"
+            where_sql += " AND T.SEASON_CODE = ?"
             params.append(season)
         if label:
-            where_sql += " AND LABEL = ?"
+            where_sql += " AND T.LABEL = ?"
             params.append(label)
         if story:
-            where_sql += " AND STORY = ?"
+            where_sql += " AND T.STORY = ?"
             params.append(story)
 
         page = max(request.args.get("page", default=1, type=int), 1)
@@ -415,28 +528,57 @@ def ranging_dashboard_drilldown():
 
         conn = get_db()
 
-        # Keep one row per option-store pair with useful descriptive columns.
+        # Column filters
+        mapping = {
+            "COUNTRY": "AREA_NAME",
+            "STORE": "STORE_NAME",
+            "OPTION": "OPTION_ID",
+            "OPT_DESC": "OPTION_DESC",
+            "TIMESTAMP": "LAST_UPDATE_DATETIME",
+            "USER_ID": "LAST_UPDATE_ID",
+            "SEASON": "SEASON_CODE",
+            "DEPT": "DEPT",
+            "CLASS": "CLASS",
+            "SUBCLASS": "SUBCLASS",
+            "BRAND": "BRAND",
+            "STATUS": "STATUS",
+            "PLR_STATUS": "PLR_STATUS",
+            "REPLENISHABLE": "REPLENISHABLE",
+            "LABEL": "LABEL",
+            "STORY": "STORY"
+        }
+        for key in request.args:
+            if key.startswith("f_") and request.args.get(key):
+                col = key[2:].upper()
+                sql_col = f"T.{mapping.get(col, col)}"
+                where_sql += f" AND {sql_col} LIKE ?"
+                params.append(f"%{request.args.get(key)}%")
+
         details_cte = f"""
             WITH details AS (
                 SELECT DISTINCT
-                    OPTION_ID,
-                    LOC,
-                    BRAND,
-                    OPTION_DESC,
-                    STATUS,
-                    DEPT,
-                    DEPT_NAME,
-                    CLASS,
-                    CLASS_NAME,
-                    SUBCLASS,
-                    SUB_NAME,
-                    SEASON_CODE,
-                    LABEL,
-                    STORY,
-                    AREA_NAME,
-                    STORE_NAME,
-                    SELLING_UNIT_RETAIL
-                FROM mv_option_loc
+                    T.OPTION_ID,
+                    T.LOC,
+                    T.BRAND,
+                    T.OPTION_DESC,
+                    T.STATUS,
+                    T.DEPT,
+                    T.DEPT_NAME,
+                    T.CLASS,
+                    T.CLASS_NAME,
+                    T.SUBCLASS,
+                    T.SUB_NAME,
+                    T.SEASON_CODE,
+                    T.LABEL,
+                    T.STORY,
+                    T.AREA_NAME,
+                    T.STORE_NAME,
+                    COALESCE(T.LAST_UPDATE_DATETIME, datetime(T.EFFECTIVE_DATE_TIME, 'unixepoch')) AS TIMESTAMP,
+                    COALESCE(T.LAST_UPDATE_ID, P.CREATE_ID) AS USER_ID,
+                    T.PLR_STATUS,
+                    T.REPLENISHABLE
+                FROM mv_option_loc T
+                LEFT JOIN product_option_dim P ON T.OPTION_ID = P.OPTION_ID
                 WHERE {where_sql}
             )
         """
@@ -465,6 +607,49 @@ def ranging_dashboard_drilldown():
             "count": len(rows),
             "rows": rows,
         })
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/ranging/update-v2", methods=["POST", "OPTIONS"])
+def ranging_dashboard_update():
+    if request.method == "OPTIONS":
+        return jsonify({"success": True}), 200
+    try:
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({"error": "Invalid or missing JSON payload"}), 400
+            
+        option_id = data.get("option_id")
+        loc = data.get("loc")
+        field = data.get("field")
+        value = data.get("value")
+        user_id = data.get("user_id", "SYSTEM")
+
+        if not option_id or loc is None or not field:
+            return jsonify({"error": "Missing required fields"}), 400
+
+        allowed_fields = ["PLR_STATUS", "REPLENISHABLE", "STATUS"]
+        field_upper = field.upper()
+        if field_upper not in allowed_fields:
+            return jsonify({"error": "Invalid field"}), 400
+
+        conn = get_db()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        conn.execute(f"""
+            UPDATE mv_option_loc
+            SET {field_upper} = ?,
+                LAST_UPDATE_DATETIME = ?,
+                LAST_UPDATE_ID = ?
+            WHERE OPTION_ID = ? AND LOC = ?
+        """, (value, now, user_id, option_id, loc))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({"success": True, "updated_at": now, "user_id": user_id})
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
@@ -1419,4 +1604,4 @@ if __name__ == "__main__":
     print("Initializing database (first run only)...")
     init_db(force_reload=False)
     print(f"Starting Flask server — frontend at http://localhost:5001")
-    app.run(host="0.0.0.0", port=5001, debug=False)
+    app.run(host="0.0.0.0", port=5001, debug=True)
