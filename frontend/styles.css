@@ -944,8 +944,8 @@ body {
 
 .rd-metric-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(120px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(5, minmax(90px, 1fr));
+  gap: 8px;
 }
 
 .rd-metric-card {
@@ -957,10 +957,10 @@ body {
 
 .rd-metric-title {
   display: block;
-  font-size: 0.98rem;
+  font-size: 0.88rem;
   font-weight: 700;
   color: #ffffff;
-  padding: 8px 12px;
+  padding: 6px 10px;
 }
 
 .rd-metric-value {
@@ -975,9 +975,9 @@ body {
 
 /* Slightly more compact values for the drill summary strip */
 .rd-drill-summary-grid .rd-metric-value {
-  font-size: 1.9rem;
-  padding-top: 12px;
-  padding-bottom: 12px;
+  font-size: 1.6rem;
+  padding-top: 10px;
+  padding-bottom: 10px;
 }
 
 .rd-metric-blue .rd-metric-title { background: #3f6fad; }
