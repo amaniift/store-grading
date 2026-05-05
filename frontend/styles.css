@@ -1227,6 +1227,10 @@ body {
   font-size: 1.55rem;
 }
 
+#page-ranging-dashboard-details .rd-drill-summary-grid {
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+}
+
 #page-ranging-dashboard-details .data-table td {
   max-width: 260px;
   overflow: hidden;
@@ -1240,6 +1244,16 @@ body {
 
   .rd-metric-grid {
     grid-template-columns: repeat(3, minmax(150px, 1fr));
+  }
+
+  #page-ranging-dashboard-details .rd-drill-summary-grid {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  #page-ranging-dashboard-details .rd-drill-summary-grid {
+    grid-template-columns: 1fr;
   }
 }
 

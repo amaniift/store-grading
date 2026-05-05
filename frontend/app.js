@@ -703,8 +703,13 @@ async function fetchRangingDrilldown() {
     const data = await apiFetch(`/api/ranging-dashboard/drilldown?${params.toString()}`);
 
     rdDrillState.total = Number(data.total || 0);
+    const rowsOnPage = Array.isArray(data.rows) ? data.rows.length : Number(data.count || 0);
 
     const totalPages = Math.max(1, Math.ceil(rdDrillState.total / rdDrillState.pageSize));
+    $('rd-drill-total').textContent = fmt(rdDrillState.total);
+    $('rd-drill-page').textContent = String(rdDrillState.page);
+    $('rd-drill-count').textContent = fmt(rowsOnPage);
+    $('rd-drill-total-pages').textContent = fmt(totalPages);
     $('rd-drill-page-info').textContent = `Page ${rdDrillState.page} of ${totalPages}`;
     $('rd-drill-prev').disabled = rdDrillState.page <= 1;
     $('rd-drill-next').disabled = rdDrillState.page >= totalPages;
