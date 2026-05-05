@@ -944,7 +944,7 @@ body {
 
 .rd-metric-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
   gap: 10px;
 }
 
@@ -965,12 +965,19 @@ body {
 
 .rd-metric-value {
   display: block;
-  padding: 10px 12px 12px;
-  font-size: 2.6rem;
+  padding: 8px 12px 10px;
+  font-size: 2.2rem;
   font-weight: 800;
   line-height: 1;
   text-align: center;
   background: #f8fafc;
+}
+
+/* Slightly more compact values for the drill summary strip */
+.rd-drill-summary-grid .rd-metric-value {
+  font-size: 1.9rem;
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
 
 .rd-metric-blue .rd-metric-title { background: #3f6fad; }
@@ -985,8 +992,12 @@ body {
 .rd-metric-purple .rd-metric-title { background: #6f4aa7; }
 .rd-metric-purple .rd-metric-value { color: #634097; }
 
-.rd-metric-amber .rd-metric-title { background: #ef9b15; }
-.rd-metric-amber .rd-metric-value { color: #df8700; }
+.rd-metric-amber .rd-metric-title { background: #d97706; }
+.rd-metric-amber .rd-metric-value { color: #b45309; }
+
+/* Teal (Options in R) contrast tweak */
+.rd-metric-teal .rd-metric-title { background: #15803d; }
+.rd-metric-teal .rd-metric-value { color: #065f46; }
 
 .rd-overview-shell {
   margin-top: 12px;
