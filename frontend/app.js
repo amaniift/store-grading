@@ -340,7 +340,7 @@ const rdState = {
 
 const rdDrillState = {
   page: 1,
-  pageSize: 100,
+  pageSize: 20,
   total: 0,
   title: '',
   extraFilters: {},
@@ -703,9 +703,6 @@ async function fetchRangingDrilldown() {
     const data = await apiFetch(`/api/ranging-dashboard/drilldown?${params.toString()}`);
 
     rdDrillState.total = Number(data.total || 0);
-    $('rd-drill-total').textContent = fmt(rdDrillState.total);
-    $('rd-drill-page').textContent = String(rdDrillState.page);
-    $('rd-drill-count').textContent = fmt(data.count || 0);
 
     const totalPages = Math.max(1, Math.ceil(rdDrillState.total / rdDrillState.pageSize));
     $('rd-drill-page-info').textContent = `Page ${rdDrillState.page} of ${totalPages}`;
