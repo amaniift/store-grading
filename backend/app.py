@@ -306,7 +306,7 @@ def ranging_dashboard_filters():
 @app.route("/api/ranging-dashboard")
 def ranging_dashboard_summary():
     try:
-        where_sql, params = build_ranging_dashboard_where(request.args, prefix="T")
+        where_sql, params = build_ranging_dashboard_where(request.args, prefix="")
         conn = get_db()
 
         metrics = conn.execute(f"""
