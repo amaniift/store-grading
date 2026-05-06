@@ -4163,37 +4163,69 @@ async function initRangingUpload() {
   function showUploadErrors(row) {
     const modal = $('modal-upload-errors');
     const body = $('ru-errors-body');
-    
-    const successCount = row.successCount || 0;
-    const errorCount = row.errorCount || 0;
-    const errorMsg = row.errorMessage || 'Unknown error occurred during processing.';
+
+    const successCount = Number(row.successCount || 0);
+    const errorCount = Number(row.errorCount || 0);
+    const errorDetails = Array.isArray(row.errorDetails) && row.errorDetails.length
+      ? row.errorDetails
+      : [{ rowSeq: '1', status: 'Errored', reason: row.errorMessage || 'Unknown error occurred during processing.' }];
 
     body.innerHTML = `
-      <div style="margin-bottom:20px;">
-        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-          <span style="color:var(--text-secondary);">Process ID:</span>
-          <span style="font-weight:600; font-family:monospace;">${esc(row.processId)}</span>
+      <div class="ru-error-meta">
+        <div class="ru-error-meta-item">
+          <span class="ru-error-meta-label">Process ID</span>
+          <span class="ru-error-meta-value mono">${esc(row.processId)}</span>
         </div>
-        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-          <span style="color:var(--text-secondary);">File:</span>
-          <span style="font-weight:600;">${esc(row.fileName)}</span>
+        <div class="ru-error-meta-item">
+          <span class="ru-error-meta-label">File Name</span>
+          <span class="ru-error-meta-value">${esc(row.fileName)}</span>
         </div>
-      </div>
-      
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px;">
-        <div style="background:rgba(16, 185, 129, 0.08); padding:16px; border-radius:10px; border:1px solid rgba(16, 185, 129, 0.2); text-align:center;">
-          <div style="font-size:24px; font-weight:700; color:var(--success);">${successCount}</div>
-          <div style="font-size:12px; color:var(--text-secondary); text-transform:uppercase; margin-top:4px;">Successfully Loaded</div>
-        </div>
-        <div style="background:rgba(239, 68, 68, 0.08); padding:16px; border-radius:10px; border:1px solid rgba(239, 68, 68, 0.2); text-align:center;">
-          <div style="font-size:24px; font-weight:700; color:var(--error);">${errorCount}</div>
-          <div style="font-size:12px; color:var(--text-secondary); text-transform:uppercase; margin-top:4px;">Failed Options</div>
+        <div class="ru-error-meta-item">
+          <span class="ru-error-meta-label">Template</span>
+          <span class="ru-error-meta-value">${esc(row.template || '—')}</span>
         </div>
       </div>
-      
-      <div style="background:var(--bg-elevated); padding:16px; border-radius:10px; border:1px solid var(--border-subtle);">
-        <h4 style="margin:0 0 8px 0; font-size:13px; color:var(--text-primary);">Error Detail:</h4>
-        <p style="margin:0; color:var(--error); font-size:13px; line-height:1.5;">${esc(errorMsg)}</p>
+
+      <div class="ru-error-summary-grid">
+        <div class="ru-error-summary-card ru-error-summary-success">
+          <div class="ru-error-summary-value">${successCount}</div>
+          <div class="ru-error-summary-label">Successful Records</div>
+        </div>
+        <div class="ru-error-summary-card ru-error-summary-error">
+          <div class="ru-error-summary-value">${errorCount}</div>
+          <div class="ru-error-summary-label">Errored Records</div>
+        </div>
+      </div>
+
+      <div class="ru-error-grid-wrap">
+        <div class="ru-error-grid-head">
+          <h4>Errored Records</h4>
+          <span>${errorDetails.length} row(s)</span>
+        </div>
+        <div class="table-wrapper ru-error-grid-table-wrap">
+          <table class="data-table ru-error-grid-table">
+            <thead>
+              <tr>
+                <th>Row Seq</th>
+                <th>Status</th>
+                <th>Error Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${errorDetails.map(item => `
+                <tr>
+                  <td class="mono">${esc(item.rowSeq ?? item.row ?? item.seq ?? '—')}</td>
+                  <td>
+                    <span class="ru-error-status-pill ${String(item.status || 'Errored').toLowerCase().includes('error') ? 'is-error' : 'is-warning'}">
+                      ${esc(item.status || 'Errored')}
+                    </span>
+                  </td>
+                  <td>${esc(item.reason || item.message || row.errorMessage || 'Unknown error occurred during processing.')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
       </div>
     `;
     
@@ -4266,13 +4298,49 @@ async function initRangingUpload() {
 
   const sampleRows = [
     { processId: 'RU-1001', fileName: 'option_location_upload_2026-04-01.xlsx', fileSize: '12.4 KB', timestamp: '2026-04-01 09:12:03', uploadedBy: 'TEST.USER2', status: 'Processed', template: 'Option/Location Ranging upload', successCount: 150, errorCount: 0 },
-    { processId: 'RU-1002', fileName: 'plr_upload_sample.csv', fileSize: '3.1 KB', timestamp: '2026-04-02 11:22:10', uploadedBy: 'TEST.USER', status: 'Processed with Errors', template: 'PLR upload', successCount: 5, errorCount: 3, errorMessage: '3 options have erred out due to hierarchy conflicts.' },
+    { processId: 'RU-1002', fileName: 'plr_upload_sample.csv', fileSize: '3.1 KB', timestamp: '2026-04-02 11:22:10', uploadedBy: 'TEST.USER', status: 'Processed with Errors', template: 'PLR upload', successCount: 5, errorCount: 3, errorMessage: '3 options have erred out due to hierarchy conflicts.', errorDetails: [
+      { rowSeq: 2, status: 'Errored', reason: 'Brand HEN does not map to the selected entity A.' },
+      { rowSeq: 5, status: 'Errored', reason: 'Store 32005 failed validation: missing approved location mapping.' },
+      { rowSeq: 7, status: 'Errored', reason: 'Class 121 is not eligible for PLR upload under current template.' },
+    ] },
     { processId: 'RU-1003', fileName: 'option_location_changes.csv', fileSize: '2.6 KB', timestamp: '2026-04-03 14:05:22', uploadedBy: 'QA_USER', status: 'New', template: 'Option/Location Ranging upload' },
     { processId: 'RU-1004', fileName: 'option_loc_batch_april.csv', fileSize: '8.0 KB', timestamp: '2026-04-04 08:11:12', uploadedBy: 'OPERATOR1', status: 'Processed', template: 'Option/Location Ranging upload', successCount: 220, errorCount: 0 },
-    { processId: 'RU-1005', fileName: 'plr_april_variant.csv', fileSize: '5.2 KB', timestamp: '2026-04-05 10:02:50', uploadedBy: 'OPERATOR2', status: 'Errored', template: 'PLR upload', successCount: 0, errorCount: 12, errorMessage: 'File format mismatch: missing required column VPN.' },
-    { processId: 'RU-1006', fileName: 'loc_updates_may.xlsx', fileSize: '9.7 KB', timestamp: '2026-04-06 15:45:01', uploadedBy: 'DATA_ADMIN', status: 'Processed with Errors', template: 'Option/Location Ranging upload', successCount: 88, errorCount: 2, errorMessage: '2 stores (1001, 1002) not found in location master.' },
+    { processId: 'RU-1005', fileName: 'plr_april_variant.csv', fileSize: '5.2 KB', timestamp: '2026-04-05 10:02:50', uploadedBy: 'OPERATOR2', status: 'Errored', template: 'PLR upload', successCount: 0, errorCount: 12, errorMessage: 'File format mismatch: missing required column VPN.', errorDetails: [
+      { rowSeq: 1, status: 'Errored', reason: 'Missing required column VPN in header row.' },
+      { rowSeq: 2, status: 'Errored', reason: 'Row has invalid store reference for PLR upload.' },
+      { rowSeq: 3, status: 'Errored', reason: 'Row has invalid class/subclass combination.' },
+      { rowSeq: 4, status: 'Errored', reason: 'Duplicate option-store combination detected.' },
+      { rowSeq: 5, status: 'Errored', reason: 'Country code mismatch against master data.' },
+      { rowSeq: 6, status: 'Errored', reason: 'Brand is not active for selected entity.' },
+      { rowSeq: 7, status: 'Errored', reason: 'Missing style value required for PLR processing.' },
+      { rowSeq: 8, status: 'Errored', reason: 'Dept 1411 is not allowed for this upload batch.' },
+      { rowSeq: 9, status: 'Errored', reason: 'Subclass code failed validation against hierarchy.' },
+      { rowSeq: 10, status: 'Errored', reason: 'Season code not found in active season master.' },
+      { rowSeq: 11, status: 'Errored', reason: 'File contains unsupported character encoding.' },
+      { rowSeq: 12, status: 'Errored', reason: 'VPN column value missing for the final row.' },
+    ] },
+    { processId: 'RU-1006', fileName: 'loc_updates_may.xlsx', fileSize: '9.7 KB', timestamp: '2026-04-06 15:45:01', uploadedBy: 'DATA_ADMIN', status: 'Processed with Errors', template: 'Option/Location Ranging upload', successCount: 88, errorCount: 2, errorMessage: '2 stores (1001, 1002) not found in location master.', errorDetails: [
+      { rowSeq: 18, status: 'Errored', reason: 'Store 1001 was not found in the location master.' },
+      { rowSeq: 27, status: 'Errored', reason: 'Store 1002 is inactive and cannot be mapped.' },
+    ] },
     { processId: 'RU-1007', fileName: 'plr_testcase_01.csv', fileSize: '1.8 KB', timestamp: '2026-04-07 09:30:15', uploadedBy: 'QA_USER', status: 'New', template: 'PLR upload' },
-    { processId: 'RU-1008', fileName: 'option_loc_bulk_2026_04_08.xlsx', fileSize: '22.1 KB', timestamp: '2026-04-08 12:22:33', uploadedBy: 'IMPORT_SERVICE', status: 'Partially Submitted with Errors', template: 'Option/Location Ranging upload', successCount: 412, errorCount: 15, errorMessage: '15 items failed validation: Invalid Season Code.' },
+    { processId: 'RU-1008', fileName: 'option_loc_bulk_2026_04_08.xlsx', fileSize: '22.1 KB', timestamp: '2026-04-08 12:22:33', uploadedBy: 'IMPORT_SERVICE', status: 'Partially Submitted with Errors', template: 'Option/Location Ranging upload', successCount: 412, errorCount: 15, errorMessage: '15 items failed validation: Invalid Season Code.', errorDetails: [
+      { rowSeq: 4, status: 'Errored', reason: 'Season code AW24 is not available in the active season list.' },
+      { rowSeq: 9, status: 'Errored', reason: 'Season code SS24 is not available in the active season list.' },
+      { rowSeq: 12, status: 'Errored', reason: 'Season code FW24 is not available in the active season list.' },
+      { rowSeq: 19, status: 'Errored', reason: 'Season code SP24 is not available in the active season list.' },
+      { rowSeq: 23, status: 'Errored', reason: 'Season code SU24 is not available in the active season list.' },
+      { rowSeq: 31, status: 'Errored', reason: 'Season code AW25 is not available in the active season list.' },
+      { rowSeq: 35, status: 'Errored', reason: 'Season code SS25 is not available in the active season list.' },
+      { rowSeq: 41, status: 'Errored', reason: 'Season code FW25 is not available in the active season list.' },
+      { rowSeq: 44, status: 'Errored', reason: 'Season code SP25 is not available in the active season list.' },
+      { rowSeq: 56, status: 'Errored', reason: 'Season code SU25 is not available in the active season list.' },
+      { rowSeq: 61, status: 'Errored', reason: 'Season code AW26 is not available in the active season list.' },
+      { rowSeq: 74, status: 'Errored', reason: 'Season code SS26 is not available in the active season list.' },
+      { rowSeq: 88, status: 'Errored', reason: 'Season code FW26 is not available in the active season list.' },
+      { rowSeq: 95, status: 'Errored', reason: 'Season code SP26 is not available in the active season list.' },
+      { rowSeq: 103, status: 'Errored', reason: 'Season code SU26 is not available in the active season list.' },
+    ] },
     { processId: 'RU-1009', fileName: 'plr_final_release.csv', fileSize: '4.0 KB', timestamp: '2026-04-09 16:05:44', uploadedBy: 'RELEASE_USER', status: 'Fully Submitted', template: 'PLR upload', successCount: 65, errorCount: 0 },
     { processId: 'RU-1010', fileName: 'option_loc_retry.csv', fileSize: '2.9 KB', timestamp: '2026-04-10 11:11:11', uploadedBy: 'OPERATOR1', status: 'New', template: 'Option/Location Ranging upload' },
   ];
