@@ -4123,10 +4123,81 @@ async function initRangingUpload() {
   const downloadBtn = $('ru-btn-download');
   const statusBody = $('ru-status-body');
   const refreshBtn = $('ru-btn-refresh-status');
+  const errorDownloadBtn = $('ru-errors-download');
+  let activeErrorRow = null;
 
   function getStatusClass(status) {
     if (!status) return '';
     return 'ru-status-' + String(status).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  }
+
+  function getErrorGridColumns(templateName) {
+    const template = String(templateName || '').toLowerCase();
+    if (template.includes('plr')) {
+      return [
+        { key: 'rowSeq', label: 'Row Seq' },
+        { key: 'actionType', label: 'Action Type' },
+        { key: 'entity', label: 'Entity' },
+        { key: 'brand', label: 'Brand' },
+        { key: 'country', label: 'Country' },
+        { key: 'location', label: 'Location' },
+        { key: 'dept', label: 'Dept' },
+        { key: 'class', label: 'Class' },
+        { key: 'subclass', label: 'Subclass' },
+        { key: 'style', label: 'Style' },
+        { key: 'diff1', label: 'Diff 1' },
+        { key: 'diff2', label: 'Diff 2' },
+        { key: 'status', label: 'Status' },
+        { key: 'reason', label: 'Error Reason' },
+      ];
+    }
+
+    return [
+      { key: 'rowSeq', label: 'Row Seq' },
+      { key: 'actionType', label: 'Action Type' },
+      { key: 'entity', label: 'Entity' },
+      { key: 'brand', label: 'Brand' },
+      { key: 'country', label: 'Country' },
+      { key: 'location', label: 'Location' },
+      { key: 'dept', label: 'Dept' },
+      { key: 'class', label: 'Class' },
+      { key: 'subclass', label: 'Subclass' },
+      { key: 'style', label: 'Style' },
+      { key: 'diff1', label: 'Diff 1' },
+      { key: 'diff2', label: 'Diff 2' },
+      { key: 'status', label: 'Status' },
+      { key: 'reason', label: 'Error Reason' },
+    ];
+  }
+
+  function csvEscape(value) {
+    const text = value == null ? '' : String(value);
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  function downloadErrorGrid(row) {
+    const columns = getErrorGridColumns(row.template);
+    const errorDetails = Array.isArray(row.errorDetails) && row.errorDetails.length
+      ? row.errorDetails
+      : [{ rowSeq: '1', status: 'Errored', reason: row.errorMessage || 'Unknown error occurred during processing.' }];
+
+    const header = columns.map(col => csvEscape(col.label)).join(',');
+    const lines = errorDetails.map(detail => columns.map(col => {
+      if (col.key === 'reason') return csvEscape(detail.reason || detail.message || row.errorMessage || '');
+      return csvEscape(detail[col.key]);
+    }).join(','));
+
+    const blob = new Blob([`${header}\n${lines.join('\n')}\n`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    const fileBase = String(row.fileName || 'error-grid').replace(/\.[^.]+$/, '');
+    anchor.href = url;
+    anchor.download = `${fileBase}_errored_records.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    showToast('success', 'Error Grid Downloaded', `Downloaded errored records for ${row.fileName}`);
   }
 
   function addStatusRow(row) {
@@ -4163,12 +4234,14 @@ async function initRangingUpload() {
   function showUploadErrors(row) {
     const modal = $('modal-upload-errors');
     const body = $('ru-errors-body');
+    activeErrorRow = row;
 
     const successCount = Number(row.successCount || 0);
     const errorCount = Number(row.errorCount || 0);
     const errorDetails = Array.isArray(row.errorDetails) && row.errorDetails.length
       ? row.errorDetails
       : [{ rowSeq: '1', status: 'Errored', reason: row.errorMessage || 'Unknown error occurred during processing.' }];
+    const columns = getErrorGridColumns(row.template);
 
     body.innerHTML = `
       <div class="ru-error-meta">
@@ -4206,21 +4279,22 @@ async function initRangingUpload() {
           <table class="data-table ru-error-grid-table">
             <thead>
               <tr>
-                <th>Row Seq</th>
-                <th>Status</th>
-                <th>Error Reason</th>
+                ${columns.map(col => `<th>${esc(col.label)}</th>`).join('')}
               </tr>
             </thead>
             <tbody>
               ${errorDetails.map(item => `
                 <tr>
-                  <td class="mono">${esc(item.rowSeq ?? item.row ?? item.seq ?? '—')}</td>
-                  <td>
-                    <span class="ru-error-status-pill ${String(item.status || 'Errored').toLowerCase().includes('error') ? 'is-error' : 'is-warning'}">
-                      ${esc(item.status || 'Errored')}
-                    </span>
-                  </td>
-                  <td>${esc(item.reason || item.message || row.errorMessage || 'Unknown error occurred during processing.')}</td>
+                  ${columns.map(col => {
+                    if (col.key === 'status') {
+                      const statusText = String(item.status || 'Errored');
+                      return `<td><span class="ru-error-status-pill ${statusText.toLowerCase().includes('error') ? 'is-error' : 'is-warning'}">${esc(statusText)}</span></td>`;
+                    }
+                    if (col.key === 'reason') {
+                      return `<td>${esc(item.reason || item.message || row.errorMessage || 'Unknown error occurred during processing.')}</td>`;
+                    }
+                    return `<td class="${col.key === 'rowSeq' ? 'mono' : ''}">${esc(item[col.key] ?? '—')}</td>`;
+                  }).join('')}
                 </tr>
               `).join('')}
             </tbody>
@@ -4234,6 +4308,13 @@ async function initRangingUpload() {
 
   $('ru-errors-close').addEventListener('click', () => $('modal-upload-errors').classList.add('hidden'));
   $('ru-errors-done').addEventListener('click', () => $('modal-upload-errors').classList.add('hidden'));
+  if (errorDownloadBtn) {
+    errorDownloadBtn.addEventListener('click', () => {
+      if (activeErrorRow) {
+        downloadErrorGrid(activeErrorRow);
+      }
+    });
+  }
 
   uploadBtn.addEventListener('click', () => {
     const tpl = tplSelect.value;
@@ -4299,47 +4380,47 @@ async function initRangingUpload() {
   const sampleRows = [
     { processId: 'RU-1001', fileName: 'option_location_upload_2026-04-01.xlsx', fileSize: '12.4 KB', timestamp: '2026-04-01 09:12:03', uploadedBy: 'TEST.USER2', status: 'Processed', template: 'Option/Location Ranging upload', successCount: 150, errorCount: 0 },
     { processId: 'RU-1002', fileName: 'plr_upload_sample.csv', fileSize: '3.1 KB', timestamp: '2026-04-02 11:22:10', uploadedBy: 'TEST.USER', status: 'Processed with Errors', template: 'PLR upload', successCount: 5, errorCount: 3, errorMessage: '3 options have erred out due to hierarchy conflicts.', errorDetails: [
-      { rowSeq: 2, status: 'Errored', reason: 'Brand HEN does not map to the selected entity A.' },
-      { rowSeq: 5, status: 'Errored', reason: 'Store 32005 failed validation: missing approved location mapping.' },
-      { rowSeq: 7, status: 'Errored', reason: 'Class 121 is not eligible for PLR upload under current template.' },
+      { rowSeq: 2, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '31611', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Brand HEN does not map to the selected entity A.' },
+      { rowSeq: 5, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '32005', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Store 32005 failed validation: missing approved location mapping.' },
+      { rowSeq: 7, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '31718', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Class 121 is not eligible for PLR upload under current template.' },
     ] },
     { processId: 'RU-1003', fileName: 'option_location_changes.csv', fileSize: '2.6 KB', timestamp: '2026-04-03 14:05:22', uploadedBy: 'QA_USER', status: 'New', template: 'Option/Location Ranging upload' },
     { processId: 'RU-1004', fileName: 'option_loc_batch_april.csv', fileSize: '8.0 KB', timestamp: '2026-04-04 08:11:12', uploadedBy: 'OPERATOR1', status: 'Processed', template: 'Option/Location Ranging upload', successCount: 220, errorCount: 0 },
     { processId: 'RU-1005', fileName: 'plr_april_variant.csv', fileSize: '5.2 KB', timestamp: '2026-04-05 10:02:50', uploadedBy: 'OPERATOR2', status: 'Errored', template: 'PLR upload', successCount: 0, errorCount: 12, errorMessage: 'File format mismatch: missing required column VPN.', errorDetails: [
-      { rowSeq: 1, status: 'Errored', reason: 'Missing required column VPN in header row.' },
-      { rowSeq: 2, status: 'Errored', reason: 'Row has invalid store reference for PLR upload.' },
-      { rowSeq: 3, status: 'Errored', reason: 'Row has invalid class/subclass combination.' },
-      { rowSeq: 4, status: 'Errored', reason: 'Duplicate option-store combination detected.' },
-      { rowSeq: 5, status: 'Errored', reason: 'Country code mismatch against master data.' },
-      { rowSeq: 6, status: 'Errored', reason: 'Brand is not active for selected entity.' },
-      { rowSeq: 7, status: 'Errored', reason: 'Missing style value required for PLR processing.' },
-      { rowSeq: 8, status: 'Errored', reason: 'Dept 1411 is not allowed for this upload batch.' },
-      { rowSeq: 9, status: 'Errored', reason: 'Subclass code failed validation against hierarchy.' },
-      { rowSeq: 10, status: 'Errored', reason: 'Season code not found in active season master.' },
-      { rowSeq: 11, status: 'Errored', reason: 'File contains unsupported character encoding.' },
-      { rowSeq: 12, status: 'Errored', reason: 'VPN column value missing for the final row.' },
+      { rowSeq: 1, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '31611', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Missing required column VPN in header row.' },
+      { rowSeq: 2, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '32005', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Row has invalid store reference for PLR upload.' },
+      { rowSeq: 3, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '31718', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Row has invalid class/subclass combination.' },
+      { rowSeq: 4, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '32111', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Duplicate option-store combination detected.' },
+      { rowSeq: 5, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '32112', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Country code mismatch against master data.' },
+      { rowSeq: 6, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '32113', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Brand is not active for selected entity.' },
+      { rowSeq: 7, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '32114', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Missing style value required for PLR processing.' },
+      { rowSeq: 8, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '32115', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Dept 1411 is not allowed for this upload batch.' },
+      { rowSeq: 9, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '32116', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Subclass code failed validation against hierarchy.' },
+      { rowSeq: 10, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '32117', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Season code not found in active season master.' },
+      { rowSeq: 11, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '32118', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'File contains unsupported character encoding.' },
+      { rowSeq: 12, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '32119', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'VPN column value missing for the final row.' },
     ] },
     { processId: 'RU-1006', fileName: 'loc_updates_may.xlsx', fileSize: '9.7 KB', timestamp: '2026-04-06 15:45:01', uploadedBy: 'DATA_ADMIN', status: 'Processed with Errors', template: 'Option/Location Ranging upload', successCount: 88, errorCount: 2, errorMessage: '2 stores (1001, 1002) not found in location master.', errorDetails: [
-      { rowSeq: 18, status: 'Errored', reason: 'Store 1001 was not found in the location master.' },
-      { rowSeq: 27, status: 'Errored', reason: 'Store 1002 is inactive and cannot be mapped.' },
+      { rowSeq: 18, actionType: 'UPDATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '1001', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Store 1001 was not found in the location master.' },
+      { rowSeq: 27, actionType: 'UPDATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '1002', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Store 1002 is inactive and cannot be mapped.' },
     ] },
     { processId: 'RU-1007', fileName: 'plr_testcase_01.csv', fileSize: '1.8 KB', timestamp: '2026-04-07 09:30:15', uploadedBy: 'QA_USER', status: 'New', template: 'PLR upload' },
     { processId: 'RU-1008', fileName: 'option_loc_bulk_2026_04_08.xlsx', fileSize: '22.1 KB', timestamp: '2026-04-08 12:22:33', uploadedBy: 'IMPORT_SERVICE', status: 'Partially Submitted with Errors', template: 'Option/Location Ranging upload', successCount: 412, errorCount: 15, errorMessage: '15 items failed validation: Invalid Season Code.', errorDetails: [
-      { rowSeq: 4, status: 'Errored', reason: 'Season code AW24 is not available in the active season list.' },
-      { rowSeq: 9, status: 'Errored', reason: 'Season code SS24 is not available in the active season list.' },
-      { rowSeq: 12, status: 'Errored', reason: 'Season code FW24 is not available in the active season list.' },
-      { rowSeq: 19, status: 'Errored', reason: 'Season code SP24 is not available in the active season list.' },
-      { rowSeq: 23, status: 'Errored', reason: 'Season code SU24 is not available in the active season list.' },
-      { rowSeq: 31, status: 'Errored', reason: 'Season code AW25 is not available in the active season list.' },
-      { rowSeq: 35, status: 'Errored', reason: 'Season code SS25 is not available in the active season list.' },
-      { rowSeq: 41, status: 'Errored', reason: 'Season code FW25 is not available in the active season list.' },
-      { rowSeq: 44, status: 'Errored', reason: 'Season code SP25 is not available in the active season list.' },
-      { rowSeq: 56, status: 'Errored', reason: 'Season code SU25 is not available in the active season list.' },
-      { rowSeq: 61, status: 'Errored', reason: 'Season code AW26 is not available in the active season list.' },
-      { rowSeq: 74, status: 'Errored', reason: 'Season code SS26 is not available in the active season list.' },
-      { rowSeq: 88, status: 'Errored', reason: 'Season code FW26 is not available in the active season list.' },
-      { rowSeq: 95, status: 'Errored', reason: 'Season code SP26 is not available in the active season list.' },
-      { rowSeq: 103, status: 'Errored', reason: 'Season code SU26 is not available in the active season list.' },
+      { rowSeq: 4, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '4001', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Season code AW24 is not available in the active season list.' },
+      { rowSeq: 9, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '4002', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Season code SS24 is not available in the active season list.' },
+      { rowSeq: 12, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '4003', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Season code FW24 is not available in the active season list.' },
+      { rowSeq: 19, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '4004', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Season code SP24 is not available in the active season list.' },
+      { rowSeq: 23, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '4005', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Season code SU24 is not available in the active season list.' },
+      { rowSeq: 31, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '4006', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Season code AW25 is not available in the active season list.' },
+      { rowSeq: 35, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '4007', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Season code SS25 is not available in the active season list.' },
+      { rowSeq: 41, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '4008', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Season code FW25 is not available in the active season list.' },
+      { rowSeq: 44, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '4009', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Season code SP25 is not available in the active season list.' },
+      { rowSeq: 56, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '4010', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Season code SU25 is not available in the active season list.' },
+      { rowSeq: 61, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '4011', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Season code AW26 is not available in the active season list.' },
+      { rowSeq: 74, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '4012', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Season code SS26 is not available in the active season list.' },
+      { rowSeq: 88, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '4013', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Season code FW26 is not available in the active season list.' },
+      { rowSeq: 95, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '4014', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Season code SP26 is not available in the active season list.' },
+      { rowSeq: 103, actionType: 'CREATE', entity: 'A', brand: 'HEN', country: 'SAU', location: '4015', dept: '1411', class: '121', subclass: '1', style: '270014763', diff1: 'HC00109090', diff2: 'HC00109090', status: 'Errored', reason: 'Season code SU26 is not available in the active season list.' },
     ] },
     { processId: 'RU-1009', fileName: 'plr_final_release.csv', fileSize: '4.0 KB', timestamp: '2026-04-09 16:05:44', uploadedBy: 'RELEASE_USER', status: 'Fully Submitted', template: 'PLR upload', successCount: 65, errorCount: 0 },
     { processId: 'RU-1010', fileName: 'option_loc_retry.csv', fileSize: '2.9 KB', timestamp: '2026-04-10 11:11:11', uploadedBy: 'OPERATOR1', status: 'New', template: 'Option/Location Ranging upload' },
